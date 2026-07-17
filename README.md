@@ -89,6 +89,39 @@ python -m pytest tests/ -v
 2. **Stage 2** (`build_btc_catalog.py`): Normalize, parse, output JSONL + quality report
 3. **Loader** (`btc_catalog.py`): Load JSONL với schema validation — bật qua `CATALOG_SOURCE=btc`
 
+## Deployment
+
+Hai luồng chạy song song — **on-prem** (bản chấm feasibility theo brief) và **Vercel** (bản public để demo/chia sẻ).
+
+### On-prem (uvicorn)
+
+Bản gốc theo yêu cầu brief. Chạy `python backend.py` (mục Quick Start). Toàn quyền dữ liệu, không rời máy chủ nội bộ.
+
+### Vercel (public demo)
+
+Serverless adapter tại `api/index.py` (không dùng `backend.py`). Vercel phục vụ `frontend/` tĩnh; Python chỉ chạy cho `/api/*` (xem `vercel.json`).
+
+- **Chạy path mock** (`antigravity/core.py`) → **KHÔNG** cần/không bundle dữ liệu BTC → an toàn NDA. `.vercelignore` + `.gitignore` chặn `data/`, `.env`, Excel rời máy.
+- **API key:** đặt `FPT_API_KEY` là **Environment Variable** trong Vercel (Project → Settings → Environment Variables). KHÔNG commit key, KHÔNG để lộ ra browser — backend gọi FPT server-side.
+
+Deploy:
+
+```bash
+# 1. Cài Vercel CLI (một lần)
+npm i -g vercel
+
+# 2. Từ thư mục gốc repo
+vercel                 # preview deploy
+vercel --prod          # production
+
+# 3. Set secret (hoặc làm trong dashboard)
+vercel env add FPT_API_KEY
+```
+
+Hoặc dùng **Git integration**: import repo vào Vercel — chỉ file đã commit được đẩy (data không commit → không lộ). Nhớ set `FPT_API_KEY` trong dashboard.
+
+> **Lưu ý serverless:** cold-start khởi tạo lại mỗi invocation → không preload catalog như on-prem. Với mock path điều này không ảnh hưởng. Khi chuyển sang BTC path thật, cân nhắc external storage cho `data/` (không commit) + giữ latency SLA.
+
 ## License
 
 Internal project — Vietnam Innovation Challenge 2026.

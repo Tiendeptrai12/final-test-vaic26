@@ -19,7 +19,7 @@ from typing import Any
 
 from antigravity import fpt_client
 from antigravity.aircon_ranking import (
-    PRIORITIES, ROOM_TYPES, NeedProfile, RankResult, rank_top,
+    PRIORITIES, ROOM_TYPES, NeedProfile, RankedItem, RankResult, rank_top,
 )
 
 # slots that gate a follow-up question when null (decided in Phase 3 planning)
@@ -196,3 +196,62 @@ def advise(
 
     result: RankResult = rank_top(profile, records=records, n=n)
     return {"status": "ok", "profile": profile_dict, "result": result, "raw_llm": raw}
+
+
+# --------------------------------------------------------------------------- #
+# API-facing response builder (stable JSON contract for POST /api/chat)
+# --------------------------------------------------------------------------- #
+def _item_to_dict(it: RankedItem) -> dict[str, Any]:
+    """Serialize a RankedItem for the API. Numbers come only from the record."""
+    return {
+        "product_id": it.product_id,
+        "brand": it.brand,
+        "price": it.effective_price,
+        "reasons": it.reasons,
+        "breakdown": it.breakdown,
+        "missing_data": it.missing_data,
+        "spec": it.spec,
+    }
+
+
+def build_chat_response(
+    text: str, history: list[dict[str, str]] | None = None, *,
+    records: list[dict[str, Any]] | None = None, n: int = 3, timeout: float = 3.0,
+) -> dict[str, Any]:
+    """Wrap advise() into a flat, frontend-friendly, JSON-safe contract.
+
+    Shape:
+      {query, mode: "need_info"|"recommendation", message, questions[], profile{},
+       items[], relaxations[], safety_checked}
+    Prices/specs come ONLY from ranked records (code), never from the LLM.
+    """
+    out = advise(text, history, records=records, n=n, timeout=timeout)
+    base: dict[str, Any] = {
+        "query": text,
+        "profile": out.get("profile", {}),
+        "questions": [],
+        "items": [],
+        "relaxations": [],
+        "safety_checked": True,
+    }
+
+    if out["status"] == "need_info":
+        qs = out.get("questions", [])
+        base["mode"] = "need_info"
+        base["message"] = " ".join(qs) or "Bạn bổ sung thêm thông tin giúp mình nhé."
+        base["questions"] = qs
+        return base
+
+    result: RankResult = out["result"]
+    base["mode"] = "recommendation"
+    base["items"] = [_item_to_dict(it) for it in result.items]
+    base["relaxations"] = result.relaxations
+    if not result.items:
+        # no-results terminal (guardrail code_rules.no_results_terminal): never fabricate
+        base["message"] = ("Chưa có sản phẩm phù hợp với tiêu chí này. "
+                           "Bạn thử nới ngân sách hoặc diện tích nhé.")
+    else:
+        base["message"] = "Đây là Top gợi ý phù hợp nhất với nhu cầu của bạn:"
+        if result.relaxations:
+            base["message"] += " (đã nới nhẹ tiêu chí: " + ", ".join(result.relaxations) + ")"
+    return base

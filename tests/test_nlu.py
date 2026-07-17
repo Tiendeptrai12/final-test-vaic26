@@ -156,6 +156,50 @@ def test_advise_ok_ranks(monkeypatch):
     assert out["result"].items[0].product_id == "A"
 
 
+# --- build_chat_response (API contract) -------------------------------------
+def test_chat_response_recommendation(monkeypatch):
+    _mock_llm(monkeypatch, {"budget_max": 20000000, "area_m2": 18, "priority": "quiet"})
+    records = [
+        _rec("A", 10_000_000, 15, 20, 30, 6.2),
+        _rec("B", 18_000_000, 15, 20, 42, 4.5),
+    ]
+    resp = nlu.build_chat_response("máy lạnh 20 triệu phòng 18m2 êm", records=records)
+    assert resp["mode"] == "recommendation"
+    assert resp["items"] and resp["items"][0]["product_id"] == "A"
+    assert "price" in resp["items"][0] and "reasons" in resp["items"][0]
+    assert resp["safety_checked"] is True
+    # JSON-serializable (no dataclasses leak into the contract)
+    json.dumps(resp, ensure_ascii=False)
+
+
+def test_chat_response_need_info(monkeypatch):
+    _mock_llm(monkeypatch, {"priority": "quiet"})
+    resp = nlu.build_chat_response("máy lạnh chạy êm")
+    assert resp["mode"] == "need_info"
+    assert resp["message"] and resp["questions"]
+    assert resp["items"] == []
+
+
+def test_chat_response_no_results(monkeypatch):
+    _mock_llm(monkeypatch, {"budget_max": 1_000_000, "area_m2": 18})  # too cheap
+    resp = nlu.build_chat_response("máy lạnh 1 triệu phòng 18m2",
+                                   records=[_rec("A", 10_000_000, 15, 20, 30, 6.2)])
+    assert resp["mode"] == "recommendation" and resp["items"] == []
+    assert "Chưa có sản phẩm phù hợp" in resp["message"]
+
+
+def test_chat_endpoint_gate_mock_default(monkeypatch):
+    """CATALOG_SOURCE unset -> endpoint keeps the mock path (data-free, Vercel-safe)."""
+    from antigravity import btc_catalog
+    monkeypatch.setattr(btc_catalog, "is_btc_enabled", lambda: False)
+    from fastapi.testclient import TestClient
+    from antigravity.views import router
+    from fastapi import FastAPI
+    app = FastAPI(); app.include_router(router, prefix="/api")
+    r = TestClient(app).post("/api/chat", json={"query": "máy lạnh"})
+    assert r.status_code == 200 and "response" in r.json()  # mock shape
+
+
 # --- optional live smoke ----------------------------------------------------
 @pytest.mark.skipif(os.environ.get("FPT_LIVE_SMOKE") != "1",
                     reason="live FPT smoke disabled (set FPT_LIVE_SMOKE=1)")
