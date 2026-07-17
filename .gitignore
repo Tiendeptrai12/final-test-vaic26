@@ -1,0 +1,39 @@
+# Local environment variables (sensitive)
+.env
+
+# Python build and virtualenv files
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+build/
+dist/
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Workspace agent files we don't want to commit (optional)
+# root-anchored so antigravity/.agents/ (app config, loaded by core.py) stays committable
+/.agents/
+temp_*/
+work-tmp/
+
+# BTC hackathon data (NDA) - do not commit
+data/raw/
+data/processed/btc_*
+artifacts/btc_*
+
+# Large vendored libs / assets (local only)
+libs/
+*.zip
+*.pptx

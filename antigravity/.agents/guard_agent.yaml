@@ -1,0 +1,85 @@
+name: guard_agent
+role: Safety & Flow-Constraint Agent
+description: >
+  Enforces the advisor flow's hard rules — anti-hallucination, scope, clarification
+  budget, deterministic ranking, grounded explanations. Rules are split from the flow
+  diagram on purpose: the flow stays lean (happy path), these constraints catch the
+  rest. Aligned with the adjusted AI flow (stock removed — dataset has no stock; slot
+  check is code, LLM only phrases the question).
+
+# --------------------------------------------------------------------------- #
+# hard guardrails (validators) — apply to every LLM output
+# --------------------------------------------------------------------------- #
+guardrails_config:
+  validators:
+    - name: anti_hallucination
+      on_fail: refuse
+      description: >
+        Prices, specs, promotions, and Top-3 explanations must come ONLY from catalog
+        record fields (source_fields). LLM must never invent or infer numbers outside
+        the dataset. Missing field -> say "chưa có dữ liệu", never guess.
+
+    - name: no_stock_claims
+      on_fail: refuse
+      description: >
+        Dataset has no stock column; stock_status is always "unknown". Never claim a
+        product is in/out of stock, and never filter or tie-break on stock. (Re-enable
+        stock only if referee ships real inventory data.)
+
+    - name: scope_guard
+      on_fail: refuse
+      description: >
+        In-scope = consumer electronics advice (current demo: máy lạnh). Out-of-scope
+        request -> refuse politely and steer back, do not answer off-domain.
+
+    - name: clarification_budget
+      on_fail: stop_asking
+      description: >
+        Ask-back at most 3 times per session (hỏi ngược). After 3, proceed with best
+        available profile + rank on what is known rather than looping.
+
+    - name: grounded_explanation
+      on_fail: correct
+      description: >
+        Top-3 rationale must reference only fields present on the ranked record
+        (price, noise dB, CSPF/stars, area range, inverter). No comparative claims
+        the data can't support.
+
+    - name: vietnamese_politeness
+      on_fail: correct
+      description: "Tone polite, helpful, natural Vietnamese. Concise, no filler."
+
+# --------------------------------------------------------------------------- #
+# prompt-embedded rules per LLM call (mirror the flow's rule notes)
+# --------------------------------------------------------------------------- #
+prompt_rules:
+  # LLM CALL A — hiểu nhu cầu (reused as CALL C intent classifier)
+  call_a_extract:
+    - "Ngoài phạm vi điện máy -> từ chối lịch sự."
+    - "Ý định explicit ưu tiên hơn implicit."
+    - "Tối đa hỏi lại 3 lần."
+    - "Trả về DUY NHẤT JSON; không tự bịa giá/spec."
+    # NOTE: 'đủ thông tin chưa?' do CODE quyết (REQUIRED_SLOTS trong nlu.py).
+    # LLM chỉ diễn đạt câu hỏi làm rõ cho slot mà code báo thiếu.
+
+  # LLM CALL B — xếp hạng + giải thích
+  call_b_rank_explain:
+    - "Chấm điểm tiêu chí mềm trên tập ĐÃ lọc bởi code; không tự lọc lại."
+    - "Bằng điểm -> ưu tiên GIÁ THẤP HƠN (stock đã bỏ vì không có data)."
+    - "Không suy diễn số liệu ngoài dataset; giải thích trích từ source_fields."
+    - "Chọn đúng Top 3; nêu lý do ngắn, grounded."
+
+# --------------------------------------------------------------------------- #
+# code-side rules (deterministic, NOT the LLM) — for reference / audit
+# --------------------------------------------------------------------------- #
+code_rules:
+  missing_slot_gate:
+    required_slots: [area_m2, budget_max]        # null -> hỏi ngược (followups)
+    owner: "antigravity/nlu.py :: missing_slots / followups"
+  relaxation_ladder:                              # khi 0 SP sau lọc (thay cho '+20%' của flow)
+    owner: "antigravity/aircon_ranking.py :: _relaxation_steps"
+    steps: ["bỏ brand", "bỏ sunny headroom", "budget +10%", "budget +25%", "area ±3m²"]
+  no_results_terminal:                            # gap flow: sau khi hết ladder vẫn 0 SP
+    behavior: >
+      Không loop vô tận. Hết ladder vẫn 0 -> trả lời "Chưa có sản phẩm phù hợp với
+      tiêu chí này" + gợi ý nới tiêu chí, KHÔNG bịa sản phẩm.
