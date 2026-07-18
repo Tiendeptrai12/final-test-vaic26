@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trợ lý mua sắm · Điện Máy Xanh</title>
+  <link rel="stylesheet" href="css/style.css">
+  <meta name="description" content="Trợ lý AI tư vấn chọn thiết bị điện máy — hỏi nhu cầu, so sánh, gợi ý Top 3 dựa trên dữ liệu thật.">
+
+  <meta property="og:title" content="Trợ lý mua sắm · Điện Máy Xanh">
+  <meta property="og:type" content="website">
+
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.png">
+
+  <link rel="manifest" href="site.webmanifest">
+  <meta name="theme-color" content="#128c3e">
+</head>
+
+<body>
+  <div class="app">
+    <header class="app__bar">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">ĐMX</span>
+        <span class="brand__name">Trợ lý mua sắm</span>
+      </div>
+      <span class="app__status" id="status" data-state="idle">Sẵn sàng</span>
+    </header>
+
+    <main class="chat" id="chat" aria-live="polite">
+      <div class="msg msg--bot">
+        <p class="msg__text">Chào bạn 👋 Mình giúp chọn máy lạnh hợp nhu cầu. Bạn mô tả phòng, ngân sách và ưu tiên nhé.</p>
+      </div>
+      <div class="examples" id="examples">
+        <button class="chip" type="button">Máy lạnh dưới 20 triệu, phòng 18m², ít ồn</button>
+        <button class="chip" type="button">Phòng khách 30m² nắng, tiết kiệm điện</button>
+        <button class="chip" type="button">Máy lạnh Daikin inverter cho phòng ngủ</button>
+      </div>
+    </main>
+
+    <form class="composer" id="composer" autocomplete="off">
+      <textarea class="composer__input" id="input" rows="1"
+        placeholder="Mô tả nhu cầu của bạn…" aria-label="Nhập nhu cầu"></textarea>
+      <button class="composer__send" id="send" type="submit" aria-label="Gửi">Gửi</button>
+    </form>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+
+</html>
