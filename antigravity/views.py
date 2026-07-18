@@ -25,6 +25,47 @@ async def health_check():
         "fpt_api_key": key_status
     }
 
+class LearnRequest(BaseModel):
+    user_query: str
+    assistant_response: str
+    context: str | None = None
+    web_url: str | None = None
+
+@router.post("/learn")
+async def learn_endpoint(request: LearnRequest):
+    """Add a new dialogue turn to the few_shot_chats vector DB for real-time learning."""
+    if not request.user_query.strip() or not request.assistant_response.strip():
+        raise HTTPException(status_code=400, detail="Query and response cannot be empty")
+    try:
+        from antigravity.vector_db import get_qdrant_client, FPTEmbedding
+        from qdrant_client.models import PointStruct
+        import uuid
+        
+        client = get_qdrant_client()
+        embedder = FPTEmbedding()
+        vector = embedder.get_text_embedding(f"Khách hàng: {request.user_query}")
+        
+        point_id = str(uuid.uuid4())
+        client.upsert(
+            collection_name="few_shot_chats",
+            points=[
+                PointStruct(
+                    id=point_id,
+                    vector=vector,
+                    payload={
+                        "user_query": request.user_query,
+                        "assistant_response": request.assistant_response,
+                        "context": request.context or "",
+                        "web_url": request.web_url or ""
+                    }
+                )
+            ]
+        )
+        return {"status": "ok", "message": "Successfully learned new few-shot dialogue turn.", "id": point_id}
+    except Exception as e:
+        logger.exception("learn_endpoint error")
+        raise HTTPException(status_code=500, detail=f"Failed to index new few-shot: {e}")
+
 @router.post("/chat")
 async def chat_endpoint(request: QueryRequest):
     """Process a Vietnamese product query and return advisory response.
