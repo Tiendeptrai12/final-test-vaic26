@@ -18,6 +18,24 @@ from typing import Any, Iterator
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SCHEMAS_DIR = BASE_DIR / "schemas"
+
+
+def processed_dir() -> Path:
+    """Directory holding the *.all.jsonl catalog files.
+
+    Defaults to data/processed (full local catalog). Override with CATALOG_DIR — used
+    by the Vercel deploy to point at a small, NDA-safe demo subset (demo_catalog/)
+    bundled with the function instead of the full NDA catalog. Relative paths resolve
+    against the repo root so it works the same locally and in the function bundle.
+    """
+    raw = os.environ.get("CATALOG_DIR", "").strip()
+    if not raw:
+        return BASE_DIR / "data" / "processed"
+    p = Path(raw)
+    return p if p.is_absolute() else BASE_DIR / p
+
+
+# Back-compat alias for callers importing the module-level constant.
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
 
@@ -104,4 +122,4 @@ def load_category(category: str, validate_schema: bool | None = None) -> list[di
     prefix = "dmx" if catalog_source() == "dmx" else "btc"
     if validate_schema is None:
         validate_schema = prefix == "btc"
-    return list(load_jsonl(PROCESSED_DIR / f"{prefix}_{category}.all.jsonl", validate_schema))
+    return list(load_jsonl(processed_dir() / f"{prefix}_{category}.all.jsonl", validate_schema))

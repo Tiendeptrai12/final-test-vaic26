@@ -261,5 +261,10 @@ def build_chat_response(
         if explain:
             from antigravity.explainer import explain_top
             profile = NeedProfile(**out["profile"])
-            base["explanation"] = explain_top(base["items"], profile)
+            # z.ai glm-5.2 (Call B) measures ~6s; give it headroom so the grounded
+            # trade-off prose actually renders instead of silently degrading. Slightly
+            # over the <5s target — switch EXPLAIN_PROVIDER=fpt (gemma ~2.6s) if the SLA
+            # must hold hard. On any failure explain_top returns None and the per-item
+            # reasons[] still carry the grounding.
+            base["explanation"] = explain_top(base["items"], profile, timeout=8.0)
     return base
