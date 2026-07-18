@@ -2,13 +2,36 @@ services:
   - type: web
     name: vaic26-backend
     runtime: python
-    buildCommand: pip install -r requirements.txt
+    # Build the REAL DMX catalog from the NDA source at deploy time. products_detail.json
+    # is NOT in git (NDA) — upload it to Render as a Secret File mounted at
+    # data/raw/dmx/products_detail.json (Dashboard > Environment > Secret Files). The
+    # builder turns it into data/processed/dmx_*.all.jsonl inside the instance, so real
+    # SKU/price/URL never touch the public repo or the Vercel bundle — only this private
+    # backend serves them. If the secret file is absent the build still succeeds; set
+    # CATALOG_DIR=demo_catalog below to fall back to the synthetic demo catalog.
+    buildCommand: pip install -r requirements.txt && python -m scripts.build_dmx_catalog
     startCommand: uvicorn api.index:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: CATALOG_SOURCE
         value: dmx
       - key: CATALOG_DIR
-        value: demo_catalog
+        value: data/processed   # real catalog built above; demo_catalog = synthetic fallback
+      # phone_ranking + any raw-json category loaders read the NDA source directly.
+      - key: DMX_CATALOG_PATH
+        value: data/raw/dmx/products_detail.json
       - key: FPT_API_KEY
         sync: false   # Set this manually in the Render dashboard (secret)
+      - key: LLM_API_KEY
+        sync: false   # z.ai/NVIDIA key for Call B explanation (grounded prose)
+      # --- Reranker (API-only, tuỳ chọn). Bật bằng RERANK_ENABLED=true và điền
+      #     URL/MODEL/KEY trong Render dashboard. Tắt -> dùng thứ tự rule-based.
+      #     KHÔNG có model local nên không tốn thêm RAM (Render free tier sống). ---
+      - key: RERANK_ENABLED
+        value: "false"
+      - key: RERANK_API_URL
+        sync: false
+      - key: RERANK_MODEL
+        sync: false
+      - key: RERANK_API_KEY
+        sync: false   # để trống sẽ dùng lại LLM_API_KEY
     autoDeploy: true

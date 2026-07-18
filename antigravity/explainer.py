@@ -36,16 +36,20 @@ _GLM_NOTHINK = {"chat_template_kwargs": {"enable_thinking": False}}
 # Hub model download) with no timeout — capped tight since it's pure enrichment, never core.
 RULES_LOOKUP_TIMEOUT = 0.5
 
-_SYSTEM = (
-    "Bạn là tư vấn viên máy lạnh của Điện Máy Xanh. Bạn nhận một danh sách sản phẩm ĐÃ được "
-    "hệ thống lọc và xếp hạng, kèm số liệu. Nhiệm vụ: viết đoạn tư vấn tiếng Việt ngắn gọn, "
-    "tự nhiên, SO SÁNH ưu/nhược (trade-off) giữa các lựa chọn và nói rõ nên chọn cái nào cho "
-    "nhu cầu của khách.\n"
-    "QUY TẮC BẮT BUỘC:\n"
-    "- CHỈ dùng đúng số liệu được cung cấp. TUYỆT ĐỐI không bịa giá, thông số, khuyến mãi, tồn kho.\n"
-    "- Không có dữ liệu cho một mục nào đó thì không nhắc tới, không suy đoán.\n"
-    "- Không bịa tên model/URL. Xưng hô lịch sự, 3-5 câu, không markdown, không bullet."
-)
+def _system_prompt(category: str | None) -> str:
+    """Category-aware system prompt. Defaults to a generic 'điện máy' advisor so a fridge/
+    TV/laptop turn is not mislabeled as a máy lạnh consult (the engine is now multi-category)."""
+    role = f"tư vấn viên {category}" if category else "tư vấn viên điện máy"
+    return (
+        f"Bạn là {role} của Điện Máy Xanh. Bạn nhận một danh sách sản phẩm ĐÃ được "
+        "hệ thống lọc và xếp hạng, kèm số liệu. Nhiệm vụ: viết đoạn tư vấn tiếng Việt ngắn gọn, "
+        "tự nhiên, SO SÁNH ưu/nhược (trade-off) giữa các lựa chọn và nói rõ nên chọn cái nào cho "
+        "nhu cầu của khách.\n"
+        "QUY TẮC BẮT BUỘC:\n"
+        "- CHỈ dùng đúng số liệu được cung cấp. TUYỆT ĐỐI không bịa giá, thông số, khuyến mãi, tồn kho.\n"
+        "- Không có dữ liệu cho một mục nào đó thì không nhắc tới, không suy đoán.\n"
+        "- Không bịa tên model/URL. Xưng hô lịch sự, 3-5 câu, không markdown, không bullet."
+    )
 
 
 def _facts_block(items: list[dict[str, Any]], profile: NeedProfile) -> str:
@@ -124,7 +128,7 @@ def explain_top(
         except Exception:
             pass
 
-    system_content = _SYSTEM + rules_block
+    system_content = _system_prompt(getattr(profile, "category", None)) + rules_block
     messages = [
         {"role": "system", "content": system_content},
         {"role": "user", "content": _facts_block(items, profile)},

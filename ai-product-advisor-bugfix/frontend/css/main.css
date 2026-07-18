@@ -1,29 +1,13 @@
 /* ================================================================= */
 /* HIỆU ỨNG TRỰC QUAN & ANIMATION CHO MASCOT                         */
-/* OPTION 1: THE LIQUID ELASTIC WAVE WITH GLOW                       */
 /* ================================================================= */
-@keyframes liquid-elastic-wave {
-  0%, 100% {
-    transform: translateY(0) scale(1);
-    filter: drop-shadow(0 4px 6px rgba(0, 149, 218, 0.15));
-  }
-  30% {
-    transform: translateY(-6px) scaleX(0.95) scaleY(1.05);
-    filter: drop-shadow(0 14px 20px rgba(0, 149, 218, 0.45)) drop-shadow(0 0 12px rgba(0, 149, 218, 0.3));
-  }
-  50% {
-    transform: translateY(-1px) scaleX(1.03) scaleY(0.97);
-    filter: drop-shadow(0 6px 10px rgba(0, 149, 218, 0.25)) drop-shadow(0 0 6px rgba(0, 149, 218, 0.15));
-  }
-  70% {
-    transform: translateY(-3px) scaleX(0.98) scaleY(1.02);
-    filter: drop-shadow(0 10px 14px rgba(0, 149, 218, 0.35)) drop-shadow(0 0 10px rgba(0, 149, 218, 0.2));
-  }
+@keyframes mascot-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.02); }
 }
 
 .animate-mascot-idle {
-  animation: liquid-elastic-wave 3.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  display: inline-block !important;
+  animation: mascot-bounce 3.5s ease-in-out infinite;
 }
 
 /* Hiệu ứng trượt xuất hiện của tin nhắn mới */
@@ -42,37 +26,16 @@
   }
 }
 
-/* ================================================================= */
-/* UPGRADED: ULTRA-LIVELY THREE DOTS WITH SQUASH, STRETCH & ELECTRIC GLOW */
-/* ================================================================= */
+/* Hiệu ứng gõ chữ dấu 3 chấm nhấp nháy */
 .typing-dot {
-  display: inline-block !important;
-  will-change: transform, opacity, background-color, box-shadow;
-  animation: ultra-lively-wave 0.5s infinite cubic-bezier(0.25, 1, 0.5, 1);
+  animation: wave 1.2s infinite ease-in-out;
 }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
-.typing-dot:nth-child(2) {
-  animation-delay: 0.08s;
-}
-.typing-dot:nth-child(3) {
-  animation-delay: 0.16s;
-}
-
-@keyframes ultra-lively-wave {
-  0%, 100% {
-    transform: translateY(0) scale(1);
-    opacity: 0.4;
-  }
-  35% {
-    transform: translateY(-10px) scaleX(0.8) scaleY(1.25); /* Expressive stretch upwards */
-    opacity: 1;
-    background-color: #0095da !important; /* Glows dynamic blue */
-    box-shadow: 0 0 10px #0095da, 0 0 20px rgba(0, 149, 218, 0.4);
-  }
-  70% {
-    transform: translateY(1.5px) scaleX(1.2) scaleY(0.85); /* Snappy squash impact on baseline */
-    opacity: 0.7;
-  }
+@keyframes wave {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-5px); }
 }
 
 /* Thanh cuộn scrollbar thanh mảnh thẩm mỹ */

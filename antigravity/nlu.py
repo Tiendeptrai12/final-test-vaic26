@@ -427,8 +427,20 @@ def advise(
         result: Any = _SimpleResult(items=items, relaxations=[])
     elif ranker == "aircon":
         result = rank_top(profile, records=records, n=n, pool=pool)
+    elif profile.category:
+        # Generic fallback engine: any DMX category without a dedicated spec ranker is ranked
+        # on grounded record signals (price/rating/popularity) instead of returning empty.
+        # Loads raw records by canonical category_name; [] when the catalog isn't present.
+        from antigravity import generic_ranking
+        gen_records = records if records is not None else \
+            generic_ranking.load_category_records(profile.category)
+        need = generic_ranking.GenericNeed(
+            budget_max=profile.budget_max, budget_min=profile.budget_min,
+            priority=profile.priority, brands=list(profile.brands))
+        items = generic_ranking.rank_generic(need, gen_records, n=n)
+        result = _SimpleResult(items=items, relaxations=[])
     else:
-        # no dedicated ranker for this category yet -> honest empty, not a wrong-engine guess
+        # no category resolved at all -> honest empty, never a wrong-engine guess
         result = _SimpleResult(items=[], relaxations=[])
 
     return {"status": "ok", "profile": profile_dict, "result": result, "raw_llm": raw}

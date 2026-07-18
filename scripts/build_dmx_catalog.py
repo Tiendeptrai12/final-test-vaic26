@@ -183,6 +183,14 @@ def main() -> None:
     ap.add_argument("--category", default=None, help="category_name to build (default: all mapped)")
     args = ap.parse_args()
 
+    # NDA source is uploaded out-of-band (Render Secret File); on a deploy where it is
+    # not present yet, skip gracefully so the build succeeds and the app falls back to
+    # the synthetic demo_catalog instead of hard-failing.
+    if not os.path.exists(args.input):
+        print(f"[build_dmx_catalog] input not found ({args.input}); "
+              "skipping real-catalog build (will use CATALOG_DIR fallback)")
+        return
+
     with open(args.input, encoding="utf-8") as f:
         data = json.load(f)
 
