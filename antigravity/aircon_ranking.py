@@ -51,6 +51,9 @@ class RankedItem:
     rating: float | None = None
     quantity_sold: int | None = None
     promotion: str | None = None
+    original_price: int | None = None
+    promotion_price: int | None = None
+    promotions: list[str] | None = None
 
 
 @dataclass
@@ -387,6 +390,9 @@ def rank_top(
             rating=_num(rec.get("rating")),
             quantity_sold=rec.get("quantity_sold"),
             promotion=rec.get("promotion"),
+            original_price=rec.get("original_price"),
+            promotion_price=rec.get("promotion_price"),
+            promotions=rec.get("promotions"),
         ))
     return RankResult(items=items, relaxations=relaxations,
                       rejected_summary=dict(sorted(rejected.items())),

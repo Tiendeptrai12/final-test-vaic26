@@ -43,6 +43,11 @@ class ProductAdvisor:
         self.researcher_config: dict[str, Any] = self._load_json_config("researcher.json")
         self.guard_config: dict[str, Any] = self._load_yaml_config("guard_agent.yaml")
         self.api_key: str = get_fpt_api_key()
+        try:
+            from antigravity.vector_db import initialize_vector_db
+            initialize_vector_db()
+        except Exception:
+            pass
 
     def _load_json_config(self, filename: str) -> dict[str, Any]:
         """Load a JSON config file from the agents directory. Return {} if missing."""
@@ -82,10 +87,27 @@ class ProductAdvisor:
         }
 
     def _scan_catalog_with_llama(self, query: str) -> list[dict[str, Any]]:
-        """Retrieve matching products from catalog. Currently mocked with static data."""
+        """Retrieve matching products from catalog using Qdrant vector database."""
         limit = self.researcher_config.get("llama_index_config", {}).get("similarity_top_k", 3)
         
-        # Static mock dataset representing Điện Máy Xanh products
+        try:
+            from antigravity.vector_db import search_products
+            results = search_products(query, limit=limit)
+            if results:
+                # Format to include original fields for display
+                formatted_results = []
+                for p in results:
+                    formatted_results.append({
+                        "id": p.get("product_id", ""),
+                        "name": p.get("name") or p.get("product_id") or "Sản phẩm",
+                        "price": f"{p.get('price', 0):,}đ" if isinstance(p.get('price'), (int, float)) else str(p.get('price', '')),
+                        "brand": p.get("brand", "")
+                    })
+                return formatted_results
+        except Exception:
+            pass
+
+        # Static mock dataset representing Điện Máy Xanh products as fallback
         mock_catalog = [
             {"id": "1", "name": "Máy Lạnh Daikin Inverter 1 HP", "price": "10,990,000đ", "btu": "9000 BTU", "power_saving": "5 Stars"},
             {"id": "2", "name": "Tủ Lạnh Panasonic Inverter 322 Lít", "price": "14,500,000đ", "power_saving": "5 Stars"},

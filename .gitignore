@@ -1,6 +1,10 @@
 # Local environment variables (sensitive)
 .env
 
+# Qdrant local vector DB — payload embeds REAL DMX catalog + real chat history (NDA).
+# Never commit; regenerate locally via antigravity/vector_db.py.
+qdrant_db/
+
 # Python build and virtualenv files
 __pycache__/
 *.py[cod]
