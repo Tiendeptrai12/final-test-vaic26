@@ -101,7 +101,11 @@ class TestProductAdvisor:
         required_keys = {"query", "response", "safety_checked", "source_nodes"}
         assert required_keys <= set(result.keys())
 
-    def test_mock_catalog_has_expected_products(self, advisor):
+    def test_mock_catalog_fallback_when_vector_empty(self, advisor, monkeypatch):
+        # When the vector catalog returns nothing, _scan_catalog_with_llama falls back to the
+        # static mock (real Qdrant data would otherwise return real product ids).
+        import antigravity.vector_db as vdb
+        monkeypatch.setattr(vdb, "search_products", lambda *a, **k: [])
         results = advisor._scan_catalog_with_llama("all")
         ids = [p["id"] for p in results]
-        assert "1" in ids  # Máy Lạnh Daikin
+        assert "1" in ids  # Máy Lạnh Daikin (mock fallback)

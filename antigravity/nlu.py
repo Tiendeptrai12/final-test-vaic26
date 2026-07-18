@@ -309,22 +309,96 @@ def _rerank_items(query: str, items: list[dict[str, Any]], n: int, timeout: floa
     return [items[idx] for idx, _score in ranked[:n]]
 
 
+def _advise_from_comparison(comp: dict[str, Any]) -> str:
+    """C7 conclusion after a comparison — grounded, from per-field winners only."""
+    prods = comp.get("products", [])
+    wins: dict[int, list[str]] = {}
+    for row in comp.get("rows", []):
+        wi = row.get("winner_idx")
+        if wi is not None:
+            wins.setdefault(wi, []).append(row["label"].lower())
+    if not wins:
+        return "Hai sản phẩm khá tương đương ở các chỉ số có dữ liệu; bạn ưu tiên tiêu chí nào nhất?"
+    parts = []
+    for idx, labels in wins.items():
+        name = (prods[idx].get("name") or prods[idx].get("brand") or f"SP {idx+1}") if idx < len(prods) else f"SP {idx+1}"
+        parts.append(f"{name} nhỉnh hơn về {', '.join(labels)}")
+    return "So sánh theo dữ liệu: " + "; ".join(parts) + ". Bạn ưu tiên tiêu chí nào thì mình chốt giúp."
+
+
+def _advise_from_fit(fit: dict[str, Any]) -> str:
+    """C7 conclusion after a fit evaluation."""
+    v = fit.get("verdict")
+    name = fit.get("name") or "Sản phẩm này"
+    fails = [r["criterion"].lower() for r in fit.get("rows", []) if r.get("ok") is False]
+    if v == "phù hợp":
+        return f"{name} phù hợp với nhu cầu của bạn ở các tiêu chí đã kiểm."
+    if v == "không phù hợp":
+        return f"{name} chưa phù hợp: chưa đạt {', '.join(fails) or 'một số tiêu chí'}."
+    if v == "chưa đủ dữ liệu":
+        return f"Chưa đủ dữ liệu để khẳng định {name} có phù hợp không."
+    return f"{name} phù hợp một phần; một số tiêu chí chưa có dữ liệu."
+
+
 def build_chat_response(
     text: str, history: list[dict[str, str]] | None = None, *,
     records: list[dict[str, Any]] | None = None, n: int = 3, timeout: float = 3.0,
     explain: bool = True, prior_profile: dict[str, Any] | None = None,
+    selected_products: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Wrap advise() into a flat, frontend-friendly, JSON-safe contract.
 
-    Shape:
-      {query, mode: "need_info"|"recommendation", message, questions[], profile{},
-       items[], relaxations[], explanation, safety_checked}
-    Prices/specs come ONLY from ranked records (code), never from the LLM. `explanation`
-    is grounded Top-3 trade-off prose (Call B); None if disabled or the explainer fails
-    (deterministic per-item reasons[] still carry the grounding). The advisor never handles
-    ordering/shipping/payment — items carry the dienmayxanh.com `url` so users go there for
-    those steps; only promotions / freeship codes are surfaced.
+    Routes every message through C0 Router, then dispatches to the matching capability
+    (teach / compare / compatibility / upgrade / fit) or the recommendation path. Shape:
+      {query, mode, message, profile, safety_checked,
+       items[], questions[], relaxations[], explanation,        # recommendation
+       comparison{} | evaluation{} | teach{}}                   # mode-specific
+    Prices/specs come ONLY from code engines, never from the LLM. Advisor never handles
+    ordering/shipping/payment — items carry the dienmayxanh.com `url`.
     """
+    from antigravity import router, comparison as _cmp, evaluation as _ev, teach as _teach
+
+    sp = selected_products or []
+    prof0 = prior_profile or {}
+    r = router.route(text)
+
+    # --- C8 Teach: side branch, never enters the pipeline ---
+    if r.intent == router.INTENT_TEACH:
+        t = _teach.teach(text, has_product=bool(sp),
+                         has_budget=prof0.get("budget_max") is not None)
+        return {"query": text, "mode": "teach", "message": t["message"], "teach": t,
+                "profile": prof0, "safety_checked": True}
+
+    # --- C6 Compare (needs >=2 resolved products) -> Advise ---
+    if r.intent == router.INTENT_COMPARE and len(sp) >= 2:
+        comp = _cmp.compare(sp)
+        return {"query": text, "mode": "comparison", "comparison": comp,
+                "message": _advise_from_comparison(comp), "profile": prof0,
+                "safety_checked": True}
+
+    # --- C6 Compatibility -> Advise ---
+    if r.intent == router.INTENT_COMPATIBILITY and len(sp) >= 2:
+        comp = _ev.evaluate_compatibility(sp[0], sp[1])
+        return {"query": text, "mode": "compatibility", "evaluation": comp,
+                "message": comp["note"], "profile": prof0, "safety_checked": True}
+
+    # --- C6 Upgrade -> Advise ---
+    if r.intent == router.INTENT_UPGRADE and len(sp) >= 2:
+        comp = _ev.evaluate_upgrade(sp[0], sp[1])
+        return {"query": text, "mode": "upgrade", "evaluation": comp,
+                "message": comp["why"], "profile": prof0, "safety_checked": True}
+
+    # --- C6 Fit (single exact product + need) -> Advise ---
+    if r.intent == router.INTENT_EXACT_LOOKUP and sp:
+        fit = _ev.evaluate_fit(sp[0], budget_max=prof0.get("budget_max"),
+                               area_m2=prof0.get("area_m2"))
+        return {"query": text, "mode": "fit", "evaluation": fit,
+                "message": _advise_from_fit(fit), "profile": prof0, "safety_checked": True}
+
+    # --- else: recommendation path (C1..C5) ---
+    # abstract lifestyle need -> front-load it as the top reranker criterion
+    rerank_query = _cmp.priority_rerank_query(text, text)
+
     # Reranker service (bge) reorders a bigger candidate pool by semantic relevance to the
     # raw query, then we slice to n. Env-gated (default on). pool = extra candidates fetched
     # without changing the filter/relaxation threshold.
@@ -354,7 +428,7 @@ def build_chat_response(
     pool_items = [_item_to_dict(it) for it in result.items]
     # SERVICE stage: bge-reranker reorders the code-approved pool by semantic relevance to
     # the raw query, then slice to n. Falls back to code order on any failure.
-    base["items"] = _rerank_items(text, pool_items, n, timeout) if use_reranker else pool_items[:n]
+    base["items"] = _rerank_items(rerank_query, pool_items, n, timeout) if use_reranker else pool_items[:n]
     base["relaxations"] = result.relaxations
     if not result.items:
         # no-results terminal (guardrail code_rules.no_results_terminal): never fabricate
