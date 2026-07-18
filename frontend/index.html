@@ -313,6 +313,15 @@
     });
   </script>
 
+  <!-- API base URL: empty = same-origin (Vercel only mode), or set to Render backend URL -->
+  <script>
+    // This is replaced at build time by Vercel env var VITE_API_BASE_URL if set.
+    // For the Render+Vercel split deployment, this will be your Render service URL.
+    window.API_BASE_URL = '__API_BASE_URL__';
+    if (!window.API_BASE_URL || window.API_BASE_URL === '__API_BASE_URL__') {
+      window.API_BASE_URL = ''; // fallback: same-origin (Vercel serverless)
+    }
+  </script>
   <script src="js/app.js"></script>
 </body>
 

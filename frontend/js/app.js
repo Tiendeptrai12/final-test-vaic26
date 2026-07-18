@@ -847,7 +847,8 @@ function renderBackendResponse(data) {
 
 async function sendToBackendAPI(text) {
   try {
-    const res = await fetch('/api/chat', {
+    const baseUrl = (window.API_BASE_URL || '').replace(/\/$/, '');
+    const res = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: text, profile: backendProfile, selected_products: [] }),

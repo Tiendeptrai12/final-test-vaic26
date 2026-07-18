@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: vaic26-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.index:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: CATALOG_SOURCE
+        value: dmx
+      - key: CATALOG_DIR
+        value: demo_catalog
+      - key: FPT_API_KEY
+        sync: false   # Set this manually in the Render dashboard (secret)
+    autoDeploy: true
