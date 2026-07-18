@@ -15,8 +15,6 @@ class QueryRequest(BaseModel):
     # multi-turn state: client resends the previous turn's `profile` so earlier slots
     # (hỏi ngược) carry forward. Server stays stateless.
     profile: dict | None = None
-    # buy flow: client sends the product the user is confirming (a ranked item dict)
-    selected_product: dict | None = None
 
 @router.get("/health")
 async def health_check():
@@ -41,8 +39,7 @@ async def chat_endpoint(request: QueryRequest):
     try:
         if btc_catalog.is_real_catalog():
             from antigravity.nlu import build_chat_response
-            return build_chat_response(request.query, prior_profile=request.profile,
-                                       selected_product=request.selected_product)
+            return build_chat_response(request.query, prior_profile=request.profile)
         return advisor.query_advisor(request.query)
     except Exception:
         logger.exception("chat_endpoint error for query: %s", request.query[:100])

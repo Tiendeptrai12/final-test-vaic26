@@ -333,8 +333,15 @@ def _load_default_records() -> list[dict[str, Any]]:
 
 
 def rank_top(
-    profile: NeedProfile, records: list[dict[str, Any]] | None = None, n: int = 3
+    profile: NeedProfile, records: list[dict[str, Any]] | None = None, n: int = 3,
+    pool: int | None = None,
 ) -> RankResult:
+    """Filter -> score -> deterministic sort -> return top items.
+
+    `pool` (>= n) returns extra scored candidates without changing the relaxation
+    threshold (still driven by n) — a downstream semantic reranker reorders them and
+    slices back to n. Default (None) returns exactly n, preserving prior behavior.
+    """
     if records is None:
         records = _load_default_records()
 
@@ -363,7 +370,7 @@ def rank_top(
     scored.sort(key=_sort_key)
 
     items: list[RankedItem] = []
-    for rec, total, breakdown, missing in scored[:n]:
+    for rec, total, breakdown, missing in scored[: (pool or n)]:
         items.append(RankedItem(
             product_id=rec.get("product_id", ""),
             brand=rec.get("brand"),

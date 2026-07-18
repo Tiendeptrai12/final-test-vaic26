@@ -14,10 +14,11 @@ only uses it when CATALOG_SOURCE=btc.
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Any
 
-from antigravity import fpt_client, order
+from antigravity import fpt_client
 from antigravity.aircon_ranking import (
     PRIORITIES, ROOM_TYPES, NeedProfile, RankedItem, RankResult, rank_top,
 )
@@ -196,7 +197,7 @@ def extract_need_profile(
 def advise(
     text: str, history: list[dict[str, str]] | None = None, *,
     records: list[dict[str, Any]] | None = None, n: int = 3, timeout: float = 3.0,
-    prior_profile: dict[str, Any] | None = None,
+    prior_profile: dict[str, Any] | None = None, pool: int | None = None,
 ) -> dict[str, Any]:
     """Full BTC turn: extract -> merge prior slots -> ask-if-missing -> rank_top.
 
@@ -220,7 +221,7 @@ def advise(
             "raw_llm": raw,
         }
 
-    result: RankResult = rank_top(profile, records=records, n=n)
+    result: RankResult = rank_top(profile, records=records, n=n, pool=pool)
     return {"status": "ok", "profile": profile_dict, "result": result, "raw_llm": raw}
 
 
@@ -246,31 +247,62 @@ def _item_to_dict(it: RankedItem) -> dict[str, Any]:
     }
 
 
+def _rerank_doc(item: dict[str, Any]) -> str:
+    """Compact text for the cross-encoder: only grounded fields, never invented."""
+    s = item.get("spec") or {}
+    bits = [str(item.get("name") or item.get("brand") or "")]
+    if s.get("area_min_m2") is not None:
+        bits.append(f"phòng {s.get('area_min_m2'):g}-{s.get('area_max_m2'):g}m2")
+    if s.get("indoor_noise_min_db") is not None:
+        bits.append(f"độ ồn {s.get('indoor_noise_min_db'):g}dB")
+    if s.get("inverter") is True:
+        bits.append("inverter tiết kiệm điện")
+    if item.get("price") is not None:
+        bits.append(f"giá {item['price']/1_000_000:.1f} triệu")
+    return " ".join(bits)
+
+
+def _rerank_items(query: str, items: list[dict[str, Any]], n: int, timeout: float) -> list[dict[str, Any]]:
+    """Reorder code-approved candidates by FPT bge-reranker semantic relevance to the raw
+    query, then take top n. SERVICE stage: only reorders items the code already filtered —
+    never adds products or invents data (guardrail intact). On any failure, returns the
+    code order unchanged (items[:n]) so the turn never blocks on a service call.
+    """
+    if len(items) <= n:
+        return items[:n]
+    try:
+        from antigravity import fpt_services
+        ranked = fpt_services.rerank(query, [_rerank_doc(it) for it in items], top_n=n, timeout=timeout)
+    except Exception:  # noqa: BLE001 - service optional; degrade to code order
+        return items[:n]
+    if not ranked:
+        return items[:n]
+    return [items[idx] for idx, _score in ranked[:n]]
+
+
 def build_chat_response(
     text: str, history: list[dict[str, str]] | None = None, *,
     records: list[dict[str, Any]] | None = None, n: int = 3, timeout: float = 3.0,
     explain: bool = True, prior_profile: dict[str, Any] | None = None,
-    selected_product: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Wrap advise() into a flat, frontend-friendly, JSON-safe contract.
 
     Shape:
-      {query, mode: "need_info"|"recommendation"|"order", message, questions[], profile{},
+      {query, mode: "need_info"|"recommendation", message, questions[], profile{},
        items[], relaxations[], explanation, safety_checked}
     Prices/specs come ONLY from ranked records (code), never from the LLM. `explanation`
     is grounded Top-3 trade-off prose (Call B); None if disabled or the explainer fails
-    (deterministic per-item reasons[] still carry the grounding). Buy intent short-circuits
-    to an order confirmation (create_order_dmx) — no ranking/LLM call.
+    (deterministic per-item reasons[] still carry the grounding). The advisor never handles
+    ordering/shipping/payment — items carry the dienmayxanh.com `url` so users go there for
+    those steps; only promotions / freeship codes are surfaced.
     """
-    # buy-flow close: deterministic intent check, grounded order from the selected item
-    if order.detect_order_intent(text):
-        resp = order.build_order_response(selected_product)
-        resp["query"] = text
-        resp["profile"] = prior_profile or {}
-        return resp
-
+    # Reranker service (bge) reorders a bigger candidate pool by semantic relevance to the
+    # raw query, then we slice to n. Env-gated (default on). pool = extra candidates fetched
+    # without changing the filter/relaxation threshold.
+    use_reranker = os.environ.get("USE_RERANKER", "1").strip().lower() not in ("0", "false", "no")
+    pool = max(n, 8) if use_reranker else None
     out = advise(text, history, records=records, n=n, timeout=timeout,
-                 prior_profile=prior_profile)
+                 prior_profile=prior_profile, pool=pool)
     base: dict[str, Any] = {
         "query": text,
         "profile": out.get("profile", {}),
@@ -290,7 +322,10 @@ def build_chat_response(
 
     result: RankResult = out["result"]
     base["mode"] = "recommendation"
-    base["items"] = [_item_to_dict(it) for it in result.items]
+    pool_items = [_item_to_dict(it) for it in result.items]
+    # SERVICE stage: bge-reranker reorders the code-approved pool by semantic relevance to
+    # the raw query, then slice to n. Falls back to code order on any failure.
+    base["items"] = _rerank_items(text, pool_items, n, timeout) if use_reranker else pool_items[:n]
     base["relaxations"] = result.relaxations
     if not result.items:
         # no-results terminal (guardrail code_rules.no_results_terminal): never fabricate

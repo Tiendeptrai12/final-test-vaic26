@@ -1,0 +1,303 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "description": "Bộ kịch bản đánh giá chất lượng phản hồi AI Product Advisor",
+    "total_scenarios": 25,
+    "categories_covered": ["air_conditioner", "refrigerator", "phone", "laptop", "washing_machine"],
+    "difficulty_levels": ["easy", "medium", "hard"]
+  },
+  "scenarios": [
+    {
+      "id": "AC-001",
+      "query": "Tìm máy lạnh inverter cho phòng ngủ 12m2 giá dưới 12 triệu",
+      "expected_category": "air_conditioner",
+      "expected_constraints": {
+        "inverter": true,
+        "area_max_m2": 12,
+        "max_budget": 12000000
+      },
+      "difficulty_level": "easy",
+      "notes": "Rõ ràng: loại, diện tích, ngân sách"
+    },
+    {
+      "id": "AC-002",
+      "query": "Nhà tôi 40m2 ở Sài Gòn, nóng quá, cần máy lạnh tiết kiệm điện nhất có thể",
+      "expected_category": "air_conditioner",
+      "expected_constraints": {
+        "area_max_m2": 40,
+        "energy_priority": "highest",
+        "location_context": "hot_climate"
+      },
+      "difficulty_level": "medium",
+      "notes": "Cần hỏi thêm ngân sách. Phải hiểu ngữ cảnh nóng = ưu tiên công suất BTU cao"
+    },
+    {
+      "id": "AC-003",
+      "query": "Máy lạnh nào chạy êm nhất cho phòng có em bé ngủ?",
+      "expected_category": "air_conditioner",
+      "expected_constraints": {
+        "noise_priority": "lowest",
+        "use_case": "nursery"
+      },
+      "difficulty_level": "medium",
+      "notes": "Phải giải thích indoor_noise_min_db. Cần hỏi diện tích và ngân sách"
+    },
+    {
+      "id": "AC-004",
+      "query": "So sánh Daikin và Panasonic máy lạnh 1.5HP, cái nào đáng mua hơn?",
+      "expected_category": "air_conditioner",
+      "expected_constraints": {
+        "brands": ["Daikin", "Panasonic"],
+        "hp": 1.5,
+        "comparison_mode": true
+      },
+      "difficulty_level": "hard",
+      "notes": "Phải so sánh trade-off giữa 2 thương hiệu cụ thể, không chỉ liệt kê thông số"
+    },
+    {
+      "id": "AC-005",
+      "query": "Tôi muốn lắp máy lạnh cho văn phòng 80m2, có khoảng 50 triệu",
+      "expected_category": "air_conditioner",
+      "expected_constraints": {
+        "area_max_m2": 80,
+        "max_budget": 50000000,
+        "use_case": "office"
+      },
+      "difficulty_level": "hard",
+      "notes": "Diện tích lớn, có thể cần 2 máy. AI nên gợi ý phương án chia máy"
+    },
+    {
+      "id": "REF-001",
+      "query": "Tủ lạnh cho gia đình 4 người, ưu tiên tiết kiệm điện",
+      "expected_category": "refrigerator",
+      "expected_constraints": {
+        "family_size": 4,
+        "energy_priority": "high"
+      },
+      "difficulty_level": "easy",
+      "notes": "Cần chuyển family_size thành dung tích phù hợp (~300-400L)"
+    },
+    {
+      "id": "REF-002",
+      "query": "Tủ lạnh side-by-side nào tốt nhất giá dưới 20 triệu?",
+      "expected_category": "refrigerator",
+      "expected_constraints": {
+        "type": "side_by_side",
+        "max_budget": 20000000,
+        "quality_priority": "best"
+      },
+      "difficulty_level": "medium",
+      "notes": "Cần xác định 'tốt nhất' theo tiêu chí nào: dung tích, thương hiệu, tính năng"
+    },
+    {
+      "id": "REF-003",
+      "query": "Tôi sống một mình, cần tủ lạnh nhỏ gọn cho phòng trọ, giá sinh viên",
+      "expected_category": "refrigerator",
+      "expected_constraints": {
+        "family_size": 1,
+        "size_preference": "compact",
+        "budget_category": "budget"
+      },
+      "difficulty_level": "easy",
+      "notes": "Giá sinh viên = phân khúc thấp. Dung tích nhỏ ~90-150L"
+    },
+    {
+      "id": "REF-004",
+      "query": "Tủ lạnh Panasonic hay Samsung bền hơn? Nhà tôi hay bị cúp điện",
+      "expected_category": "refrigerator",
+      "expected_constraints": {
+        "brands": ["Panasonic", "Samsung"],
+        "comparison_mode": true,
+        "power_outage_concern": true
+      },
+      "difficulty_level": "hard",
+      "notes": "Cần giải thích công nghệ giữ lạnh khi mất điện. So sánh độ bền = khó verify"
+    },
+    {
+      "id": "PHONE-001",
+      "query": "Điện thoại nào chụp ảnh đẹp nhất giá dưới 10 triệu?",
+      "expected_category": "phone",
+      "expected_constraints": {
+        "camera_priority": "best",
+        "max_budget": 10000000
+      },
+      "difficulty_level": "easy",
+      "notes": "Tiêu chí rõ: camera + giá. Cần giải thích MP, sensor size, night mode"
+    },
+    {
+      "id": "PHONE-002",
+      "query": "iPhone 15 hay Samsung S24, cái nào pin trâu hơn cho người hay đi công tác?",
+      "expected_category": "phone",
+      "expected_constraints": {
+        "brands": ["Apple", "Samsung"],
+        "models": ["iPhone 15", "Galaxy S24"],
+        "battery_priority": "high",
+        "use_case": "business_travel"
+      },
+      "difficulty_level": "hard",
+      "notes": "So sánh trực tiếp 2 model cụ thể. Phải nói mAh, sạc nhanh, thời gian sử dụng thực tế"
+    },
+    {
+      "id": "PHONE-003",
+      "query": "Mua điện thoại cho ba mẹ lớn tuổi, cần màn hình to chữ to dễ dùng",
+      "expected_category": "phone",
+      "expected_constraints": {
+        "target_user": "elderly",
+        "screen_size_priority": "large",
+        "ease_of_use": "high"
+      },
+      "difficulty_level": "medium",
+      "notes": "Cần hiểu đối tượng sử dụng khác người hỏi. Gợi ý chế độ đơn giản, font lớn"
+    },
+    {
+      "id": "PHONE-004",
+      "query": "Tôi chơi game Genshin Impact, cần điện thoại mượt không lag, budget 15 triệu",
+      "expected_category": "phone",
+      "expected_constraints": {
+        "use_case": "gaming",
+        "game_reference": "Genshin Impact",
+        "max_budget": 15000000,
+        "performance_priority": "high"
+      },
+      "difficulty_level": "medium",
+      "notes": "Cần biết Genshin cần chip mạnh + RAM cao. Giải thích Snapdragon vs Dimensity"
+    },
+    {
+      "id": "LAPTOP-001",
+      "query": "Laptop cho sinh viên CNTT, cần chạy được VS Code và Docker, giá khoảng 18 triệu",
+      "expected_category": "laptop",
+      "expected_constraints": {
+        "use_case": "programming",
+        "software": ["VS Code", "Docker"],
+        "max_budget": 18000000,
+        "target_user": "IT_student"
+      },
+      "difficulty_level": "medium",
+      "notes": "Docker cần RAM >= 16GB. Phải gợi ý đúng spec cho dev workflow"
+    },
+    {
+      "id": "LAPTOP-002",
+      "query": "Laptop mỏng nhẹ nhất để mang đi họp hằng ngày, pin lâu, không cần chơi game",
+      "expected_category": "laptop",
+      "expected_constraints": {
+        "portability_priority": "highest",
+        "battery_priority": "high",
+        "gaming": false
+      },
+      "difficulty_level": "easy",
+      "notes": "Cần hỏi ngân sách. Gợi ý ultrabook segment"
+    },
+    {
+      "id": "LAPTOP-003",
+      "query": "Laptop để render video 4K và chỉnh ảnh Lightroom, budget không giới hạn",
+      "expected_category": "laptop",
+      "expected_constraints": {
+        "use_case": "video_editing",
+        "software": ["Premiere Pro", "Lightroom"],
+        "resolution_support": "4K",
+        "budget_category": "unlimited"
+      },
+      "difficulty_level": "hard",
+      "notes": "Cần GPU rời mạnh, RAM 32GB+, màn hình color-accurate. Trade-off trọng lượng vs hiệu năng"
+    },
+    {
+      "id": "WM-001",
+      "query": "Máy giặt cho gia đình 5 người, giặt chăn mền được, giá tầm 8 triệu",
+      "expected_category": "washing_machine",
+      "expected_constraints": {
+        "family_size": 5,
+        "capacity_need": "large_items",
+        "max_budget": 8000000
+      },
+      "difficulty_level": "easy",
+      "notes": "Giặt chăn mền = cần >= 9kg. Family 5 = tối thiểu 8.5kg"
+    },
+    {
+      "id": "WM-002",
+      "query": "Máy giặt cửa trước hay cửa trên tiết kiệm nước hơn?",
+      "expected_category": "washing_machine",
+      "expected_constraints": {
+        "comparison_mode": true,
+        "comparison_types": ["front_load", "top_load"],
+        "water_saving_priority": "high"
+      },
+      "difficulty_level": "medium",
+      "notes": "Câu hỏi kiến thức, không có SKU cụ thể. Cần giải thích trade-off"
+    },
+    {
+      "id": "MULTI-001",
+      "query": "Tôi vừa dọn nhà mới, cần mua máy lạnh, tủ lạnh và máy giặt, tổng budget 40 triệu",
+      "expected_category": "multi_category",
+      "expected_constraints": {
+        "categories": ["air_conditioner", "refrigerator", "washing_machine"],
+        "total_budget": 40000000
+      },
+      "difficulty_level": "hard",
+      "notes": "Nhiều danh mục cùng lúc. Cần phân bổ ngân sách hợp lý giữa 3 sản phẩm"
+    },
+    {
+      "id": "MULTI-002",
+      "query": "Hàng nào đang khuyến mãi giảm giá mạnh nhất tuần này?",
+      "expected_category": "any",
+      "expected_constraints": {
+        "promotion_priority": "highest",
+        "time_sensitive": true
+      },
+      "difficulty_level": "hard",
+      "notes": "Cần truy xuất dữ liệu khuyến mãi real-time. Không được bịa khuyến mãi"
+    },
+    {
+      "id": "EDGE-001",
+      "query": "máy lạnh",
+      "expected_category": "air_conditioner",
+      "expected_constraints": {},
+      "difficulty_level": "easy",
+      "notes": "Query quá ngắn. AI PHẢI hỏi thêm: diện tích, ngân sách, nhu cầu"
+    },
+    {
+      "id": "EDGE-002",
+      "query": "Cái nào rẻ nhất?",
+      "expected_category": "unknown",
+      "expected_constraints": {
+        "price_priority": "lowest"
+      },
+      "difficulty_level": "medium",
+      "notes": "Không rõ danh mục. AI phải hỏi lại sản phẩm gì"
+    },
+    {
+      "id": "EDGE-003",
+      "query": "Máy lạnh Daikin model XYZ-99999 giá bao nhiêu?",
+      "expected_category": "air_conditioner",
+      "expected_constraints": {
+        "brand": "Daikin",
+        "model": "XYZ-99999",
+        "hallucination_test": true
+      },
+      "difficulty_level": "hard",
+      "notes": "Model không tồn tại. AI KHÔNG ĐƯỢC bịa giá. Phải trả lời không tìm thấy"
+    },
+    {
+      "id": "EDGE-004",
+      "query": "Cho tôi xem tất cả sản phẩm Apple",
+      "expected_category": "multi_category",
+      "expected_constraints": {
+        "brand": "Apple",
+        "list_mode": true
+      },
+      "difficulty_level": "medium",
+      "notes": "Brand filter across categories. Cần hỏi thêm loại sản phẩm cụ thể"
+    },
+    {
+      "id": "EDGE-005",
+      "query": "Tôi muốn trả góp 0% máy giặt Samsung, có không?",
+      "expected_category": "washing_machine",
+      "expected_constraints": {
+        "brand": "Samsung",
+        "installment": "0_percent",
+        "policy_query": true
+      },
+      "difficulty_level": "hard",
+      "notes": "Câu hỏi chính sách trả góp. Không được bịa chính sách. Cần dẫn nguồn"
+    }
+  ]
+}
