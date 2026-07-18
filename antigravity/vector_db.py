@@ -135,7 +135,8 @@ def initialize_vector_db(force_reindex: bool = False) -> None:
                     products = json.load(f)
                 
                 # Filter and index up to 100 products per key category to remain comprehensive yet fast
-                target_categories = ["Máy lạnh", "Tủ lạnh", "Laptop", "Pc, máy in"]
+                target_categories = ["Máy lạnh", "Tủ lạnh", "Laptop", "Pc, máy in",
+                                     "Điện thoại", "Máy tính bảng"]
                 category_counts = {cat: 0 for cat in target_categories}
                 
                 for product in products:
