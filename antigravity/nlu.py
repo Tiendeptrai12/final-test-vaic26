@@ -135,6 +135,27 @@ def coerce_profile(obj: dict[str, Any]) -> NeedProfile:
     )
 
 
+_PROFILE_FIELDS = ("budget_max", "budget_min", "area_m2", "room_type", "sunny",
+                   "priority", "inverter_required", "brands")
+
+
+def merge_profiles(prior: NeedProfile, new: NeedProfile) -> NeedProfile:
+    """Carry slots across turns: the new turn's value wins, else keep the prior.
+
+    This is the multi-turn "hỏi ngược" fix — when the user answers a follow-up ("18m2,
+    20 triệu") the earlier slots (priority=quiet) are not lost. Server stays stateless;
+    the client resends `profile` each turn.
+    """
+    out: dict[str, Any] = {}
+    for f in _PROFILE_FIELDS:
+        nv, pv = getattr(new, f), getattr(prior, f)
+        if f == "brands":
+            out[f] = nv if nv else pv
+        else:
+            out[f] = nv if nv is not None else pv
+    return NeedProfile(**out)
+
+
 def missing_slots(profile: NeedProfile) -> list[str]:
     """Required slots that are still null (drive hỏi-ngược follow-ups)."""
     return [s for s in REQUIRED_SLOTS if getattr(profile, s) is None]
@@ -175,14 +196,19 @@ def extract_need_profile(
 def advise(
     text: str, history: list[dict[str, str]] | None = None, *,
     records: list[dict[str, Any]] | None = None, n: int = 3, timeout: float = 3.0,
+    prior_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Full BTC turn: extract -> ask-if-missing -> rank_top.
+    """Full BTC turn: extract -> merge prior slots -> ask-if-missing -> rank_top.
 
-    Returns a dict:
+    `prior_profile` (dict from the previous turn's response) carries slots forward so a
+    follow-up answer doesn't drop earlier needs. Returns a dict:
       {"status": "need_info", "profile": {...}, "missing": [...], "questions": [...]}
       {"status": "ok",        "profile": {...}, "result": RankResult}
     """
-    profile, missing, raw = extract_need_profile(text, history, timeout=timeout)
+    profile, _missing, raw = extract_need_profile(text, history, timeout=timeout)
+    if prior_profile:
+        profile = merge_profiles(NeedProfile(**prior_profile), profile)
+    missing = missing_slots(profile)
     profile_dict = vars(profile)
 
     if missing:
@@ -223,7 +249,7 @@ def _item_to_dict(it: RankedItem) -> dict[str, Any]:
 def build_chat_response(
     text: str, history: list[dict[str, str]] | None = None, *,
     records: list[dict[str, Any]] | None = None, n: int = 3, timeout: float = 3.0,
-    explain: bool = True,
+    explain: bool = True, prior_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Wrap advise() into a flat, frontend-friendly, JSON-safe contract.
 
@@ -234,7 +260,8 @@ def build_chat_response(
     is grounded Top-3 trade-off prose (Call B); None if disabled or the explainer fails
     (deterministic per-item reasons[] still carry the grounding).
     """
-    out = advise(text, history, records=records, n=n, timeout=timeout)
+    out = advise(text, history, records=records, n=n, timeout=timeout,
+                 prior_profile=prior_profile)
     base: dict[str, Any] = {
         "query": text,
         "profile": out.get("profile", {}),

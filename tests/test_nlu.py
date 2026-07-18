@@ -213,6 +213,30 @@ def test_chat_endpoint_gate_mock_default(monkeypatch):
     assert r.status_code == 200 and "response" in r.json()  # mock shape
 
 
+# --- multi-turn state (hỏi ngược carries slots) -----------------------------
+def test_merge_profiles_new_wins_else_prior():
+    prior = NeedProfile(priority="quiet", area_m2=18.0)
+    new = NeedProfile(area_m2=22.0, budget_max=20000000)
+    m = nlu.merge_profiles(prior, new)
+    assert m.priority == "quiet"        # kept from prior
+    assert m.area_m2 == 22.0            # overridden by new
+    assert m.budget_max == 20000000     # added by new
+
+
+def test_followup_answer_keeps_earlier_priority(monkeypatch):
+    records = [_rec("A", 15_000_000, 15, 20, 22, 6.0)]
+    # turn 1: only priority -> need_info
+    _mock_llm(monkeypatch, {"priority": "quiet"})
+    r1 = nlu.build_chat_response("máy lạnh ít ồn", records=records, explain=False)
+    assert r1["mode"] == "need_info" and r1["profile"]["priority"] == "quiet"
+    # turn 2: area+budget, resend prior profile -> priority must persist
+    _mock_llm(monkeypatch, {"area_m2": 18, "budget_max": 20000000})
+    r2 = nlu.build_chat_response("18m2, 20 triệu", records=records, explain=False,
+                                 prior_profile=r1["profile"])
+    assert r2["mode"] == "recommendation"
+    assert r2["profile"]["priority"] == "quiet" and r2["profile"]["area_m2"] == 18.0
+
+
 # --- optional live smoke ----------------------------------------------------
 @pytest.mark.skipif(os.environ.get("FPT_LIVE_SMOKE") != "1",
                     reason="live FPT smoke disabled (set FPT_LIVE_SMOKE=1)")
