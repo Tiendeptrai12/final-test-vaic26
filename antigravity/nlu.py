@@ -360,21 +360,43 @@ def advise(
 # --------------------------------------------------------------------------- #
 # API-facing response builder (stable JSON contract for POST /api/chat)
 # --------------------------------------------------------------------------- #
-def _item_to_dict(it: RankedItem) -> dict[str, Any]:
-    """Serialize a RankedItem for the API. Numbers come only from the record."""
+def _item_to_dict(it: Any) -> dict[str, Any]:
+    """Serialize a ranked item (aircon RankedItem or phone PhoneItem) for the API.
+
+    Numbers come only from the record. Rankers differ in shape (phone has no image/
+    quantity_sold/promotion/missing_data fields), so this dispatches on the concrete
+    dataclass rather than assuming aircon's RankedItem everywhere.
+    """
+    if isinstance(it, RankedItem):
+        return {
+            "product_id": it.product_id,
+            "name": it.name,
+            "brand": it.brand,
+            "image": it.image,
+            "url": it.url,
+            "price": it.effective_price,
+            "rating": it.rating,
+            "quantity_sold": it.quantity_sold,
+            "promotion": it.promotion,
+            "reasons": it.reasons,
+            "breakdown": it.breakdown,
+            "missing_data": it.missing_data,
+            "spec": it.spec,
+        }
+    # PhoneItem (phone_ranking) — same contract, fields it doesn't track go None/[]
     return {
         "product_id": it.product_id,
         "name": it.name,
         "brand": it.brand,
-        "image": it.image,
+        "image": None,
         "url": it.url,
-        "price": it.effective_price,
+        "price": it.price,
         "rating": it.rating,
-        "quantity_sold": it.quantity_sold,
-        "promotion": it.promotion,
+        "quantity_sold": None,
+        "promotion": None,
         "reasons": it.reasons,
         "breakdown": it.breakdown,
-        "missing_data": it.missing_data,
+        "missing_data": [],
         "spec": it.spec,
     }
 
