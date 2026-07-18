@@ -33,6 +33,11 @@ class NeedProfile:
     priority: str | None = None            # one of PRIORITIES
     inverter_required: bool | None = None  # hard
     brands: list[str] = field(default_factory=list)  # allow-list, empty = any
+    # Multi-ngành slots (additive; None cho ngành không dùng — aircon rank bỏ qua).
+    household_size: int | None = None      # số người dùng (tủ lạnh/máy giặt/sấy/rửa chén/nước nóng)
+    capacity_liters: float | None = None   # dung tích lít (tủ đông, tủ mát)
+    battery_priority: bool | None = None   # ưu tiên pin lâu (đồng hồ TM / máy tính bảng)
+    portability_priority: bool | None = None  # ưu tiên nhỏ gọn (micro / máy tính bảng)
 
 
 @dataclass

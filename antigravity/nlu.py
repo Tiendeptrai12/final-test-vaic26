@@ -30,19 +30,56 @@ from antigravity.aircon_ranking import (
 FEW_SHOT_TIMEOUT = 0.5
 
 # required slots are category-aware (see missing_slots): every ngành cần category + budget;
-# máy lạnh cần thêm diện tích. Phase 3 chỉ có aircon; giờ đa ngành.
+# mỗi ngành có thêm slot đặc thù riêng (CATEGORY_SLOT_SCHEMA). Follow-up hỏi ngược lấy
+# đúng câu hỏi theo slot còn thiếu.
 FOLLOWUP_QUESTIONS = {
-    "category": "Bạn muốn mua sản phẩm gì ạ (máy lạnh, tủ lạnh, điện thoại, laptop...)?",
-    "area_m2": "Phòng bạn định lắp khoảng bao nhiêu m²?",
+    "category": "Bạn muốn mua sản phẩm gì ạ (máy lạnh, tủ lạnh, máy giặt, laptop...)?",
     "budget_max": "Ngân sách của bạn khoảng bao nhiêu (ví dụ 15 triệu)?",
+    "area_m2": "Phòng bạn định lắp khoảng bao nhiêu m²?",
     "priority": "Bạn ưu tiên điều gì nhất: chạy êm, làm lạnh nhanh, tiết kiệm điện, hay giá rẻ?",
+    "household_size": "Gia đình mình khoảng mấy người sử dụng ạ?",
+    "capacity_liters": "Bạn cần dung tích khoảng bao nhiêu lít ạ?",
+    "battery_priority": "Bạn có ưu tiên thời lượng pin lâu (pin trâu) không ạ?",
+    "portability_priority": "Bạn có cần sản phẩm nhỏ gọn, dễ mang theo không ạ?",
+    "usage": "Bạn dùng chủ yếu cho mục đích gì ạ (học tập, làm việc, chơi game...)?",
 }
 
-# DMX categories the advisor understands (map free text -> canonical category_name)
+# ---------------------------------------------------------------------------
+# NLU theo TỪNG NGÀNH — mỗi category_name có 1 slot đặc thù cần hỏi thêm ngoài
+# (category + budget_max). Nguồn: 14 ngành registry.json (bản backend_py), đã
+# gộp về đúng category_name DMX. Ngành nào không liệt kê ở đây -> chỉ cần
+# category + budget (dùng _DEFAULT_EXTRA_SLOTS = ()).
+#
+# Cấu hình dạng dict (KHÔNG if/else theo ngành) — thêm ngành mới chỉ cần thêm
+# 1 dòng ở đây + 1 pattern trong router.py + 1 chip ở frontend.
+# ---------------------------------------------------------------------------
+CATEGORY_SLOT_SCHEMA: dict[str, tuple[str, ...]] = {
+    "Máy lạnh": ("area_m2",),
+    "Tủ lạnh": ("household_size",),
+    "Máy giặt": ("household_size",),
+    "Máy sấy quần áo": ("household_size",),
+    "Máy rửa chén": ("household_size",),
+    "Máy nước nóng": ("household_size",),
+    "Tủ đông, tủ mát": ("capacity_liters",),
+    "Máy tính bảng": ("battery_priority",),
+    "Đồng hồ thông minh": ("battery_priority",),
+    "Micro": ("portability_priority",),
+    "Máy tính để bàn": ("usage",),
+    "Màn hình máy tính": ("usage",),
+    "Máy in": ("usage",),
+}
+
+# DMX categories the advisor understands (map free text -> canonical category_name).
+# 14 ngành chính thức (registry.json) + vài ngành phổ biến đã hoạt động sẵn.
 KNOWN_CATEGORIES = (
-    "Máy lạnh", "Tủ lạnh", "Máy giặt", "Tivi", "Điện thoại", "Laptop", "Máy tính bảng",
-    "Nồi cơm điện", "Lò vi sóng", "Quạt các loại", "Máy lọc nước", "Máy nước nóng",
-    "Máy hút bụi gia đình", "Bếp điện", "Đồng hồ thông minh", "Loa, Tai nghe",
+    # 14 ngành chính thức
+    "Máy lạnh", "Tủ lạnh", "Máy giặt", "Máy sấy quần áo", "Máy rửa chén",
+    "Máy nước nóng", "Tủ đông, tủ mát", "Máy tính bảng", "Đồng hồ thông minh",
+    "Micro", "Máy tính để bàn", "Màn hình máy tính", "Máy in",
+    # ngành phổ biến giữ lại (đã có ranker/alias sẵn)
+    "Điện thoại", "Laptop", "Tivi", "Nồi cơm điện", "Lò vi sóng",
+    "Quạt các loại", "Máy lọc nước", "Máy hút bụi gia đình", "Bếp điện",
+    "Loa, Tai nghe",
 )
 
 _SYSTEM_PROMPT = (
@@ -63,6 +100,12 @@ _SYSTEM_PROMPT = (
     '  "room_type": "bedroom"|"living_room"|null (chỉ máy lạnh)\n'
     '  "sunny": true|false|null (chỉ máy lạnh, phòng nắng/hướng tây -> true)\n'
     '  "inverter_required": true|false|null (chỉ máy lạnh/tủ lạnh/máy giặt)\n'
+    '  "household_size": số người dùng hoặc null (tủ lạnh/máy giặt/máy sấy/máy rửa chén/'
+    'máy nước nóng, vd "nhà 4 người" -> 4)\n'
+    '  "capacity_liters": số lít hoặc null (tủ đông, tủ mát, vd "300 lít" -> 300)\n'
+    '  "battery_priority": true|false|null (đồng hồ thông minh/máy tính bảng: "pin trâu"/'
+    '"pin lâu" -> true. KHÔNG bịa dung lượng pin mAh)\n'
+    '  "portability_priority": true|false|null (micro/máy tính bảng: "nhỏ gọn"/"dễ mang" -> true)\n'
     "Không suy đoán giá/thông số sản phẩm. Không chắc -> null. Chỉ JSON."
 )
 
@@ -96,6 +139,34 @@ def _coerce_area(v: Any) -> float | None:
         if m:
             val = float(m.group(0).replace(",", "."))
             return val if val > 0 else None
+    return None
+
+
+def _coerce_int(v: Any) -> int | None:
+    """Số nguyên dương (số người dùng), chấp cả chuỗi "4 người" -> 4."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return int(v) if v > 0 else None
+    if isinstance(v, str):
+        m = re.search(r"\d+", v)
+        return int(m.group(0)) if m and int(m.group(0)) > 0 else None
+    return None
+
+
+def _coerce_priority_flag(v: Any) -> bool | None:
+    """Slot ưu tiên định tính (pin lâu / nhỏ gọn): "high"/"trâu"/"có" -> True.
+    KHÔNG suy ra số liệu cụ thể (mAh, gram) — chỉ tín hiệu định tính."""
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)):
+        return bool(v)
+    if isinstance(v, str):
+        s = v.strip().lower()
+        if s in ("high", "true", "yes", "có", "co", "trâu", "trau", "lâu", "lau", "gọn", "gon"):
+            return True
+        if s in ("low", "false", "no", "không", "khong"):
+            return False
     return None
 
 
@@ -175,11 +246,16 @@ def coerce_profile(obj: dict[str, Any]) -> NeedProfile:
         priority=_coerce_enum(obj.get("priority"), PRIORITIES),
         inverter_required=_coerce_bool(obj.get("inverter_required")),
         brands=_coerce_brands(obj.get("brands")),
+        household_size=_coerce_int(obj.get("household_size")),
+        capacity_liters=_coerce_area(obj.get("capacity_liters")),
+        battery_priority=_coerce_priority_flag(obj.get("battery_priority")),
+        portability_priority=_coerce_priority_flag(obj.get("portability_priority")),
     )
 
 
 _PROFILE_FIELDS = ("category", "budget_max", "budget_min", "area_m2", "usage", "room_type",
-                   "sunny", "priority", "inverter_required", "brands")
+                   "sunny", "priority", "inverter_required", "brands",
+                   "household_size", "capacity_liters", "battery_priority", "portability_priority")
 
 
 def merge_profiles(prior: NeedProfile, new: NeedProfile) -> NeedProfile:
@@ -200,11 +276,11 @@ def merge_profiles(prior: NeedProfile, new: NeedProfile) -> NeedProfile:
 
 
 def required_slots(profile: NeedProfile) -> tuple[str, ...]:
-    """Critical slots depend on the category: mọi ngành cần category + budget; máy lạnh
-    cần thêm diện tích (để chọn công suất)."""
-    if profile.category == "Máy lạnh":
-        return ("category", "area_m2", "budget_max")
-    return ("category", "budget_max")
+    """Critical slots theo TỪNG NGÀNH: mọi ngành cần category + budget; mỗi ngành
+    có thêm slot đặc thù (CATEGORY_SLOT_SCHEMA) — vd máy lạnh cần diện tích, tủ
+    lạnh/máy giặt cần số người, tủ đông cần dung tích, đồng hồ TM cần ưu tiên pin."""
+    extra = CATEGORY_SLOT_SCHEMA.get(profile.category or "", ())
+    return ("category", "budget_max", *extra)
 
 
 def missing_slots(profile: NeedProfile) -> list[str]:
@@ -572,7 +648,21 @@ def _build_chat_response_raw(
             # over the <5s target — switch EXPLAIN_PROVIDER=fpt (gemma ~2.6s) if the SLA
             # must hold hard. On any failure explain_top returns None and the per-item
             # reasons[] still carry the grounding.
-            base["explanation"] = explain_top(base["items"], profile, query=text, timeout=8.0)
+            explanation = explain_top(base["items"], profile, query=text, timeout=8.0)
+            # VERIFY half of grounded generation: even a grounded prompt can drift a
+            # number. Check every money/spec figure the LLM wrote against the real numbers
+            # from the ranked items + slots; on any unverified value drop the prose back to
+            # the deterministic per-item reasons[] (same fail-safe as an explainer error).
+            # Env-gated (default on) so it can be turned off for debugging: CLAIM_GUARD=0.
+            if explanation and os.environ.get("CLAIM_GUARD", "1").strip().lower() not in ("0", "false", "no"):
+                from antigravity.claim_verifier import verify_explanation
+                vr = verify_explanation(explanation, base["items"], profile)
+                if not vr.ok:
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        "claim guard dropped explanation; unverified=%s", vr.unverified)
+                    explanation = None
+            base["explanation"] = explanation
     return base
 
 
