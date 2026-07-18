@@ -797,8 +797,10 @@ function syncDebugPanel() {
 // ========================================================
 // BACKEND WIRING - POST /api/chat (docs/wiring.md contract)
 // ========================================================
-// Enabled by default: attempts to use the real API. Falls back to client-side mock logic if key is missing.
-const USE_REAL_API = window.USE_REAL_API !== false;
+// Defaults to false (Offline Demo mode with premium 4 options buttons) but can be toggled to true at runtime
+function isRealApiEnabled() {
+  return !!window.USE_REAL_API;
+}
 let backendProfile = null;
 
 function formatBackendPrice(v) {
@@ -875,7 +877,7 @@ function handleFormSubmit(event) {
   input.value = '';
   showTypingIndicator();
 
-  if (USE_REAL_API) {
+  if (isRealApiEnabled()) {
     sendToBackendAPI(val).finally(removeTypingIndicator);
     return;
   }

@@ -78,6 +78,15 @@
       </span>
       <span class="text-slate-300 dark:text-brand-border hidden sm:inline">|</span>
 
+      <button id="api-toggle-btn" class="flex items-center space-x-2 bg-slate-100 dark:bg-brand-dark/80 hover:bg-slate-200 dark:hover:bg-brand-border px-3 py-2 rounded-lg border border-slate-200 dark:border-brand-border text-slate-700 dark:text-slate-300 transition-all duration-300 shadow-sm active:scale-95 animate-pulse" title="Chuyển đổi chế độ xử lý (API hoặc Offline Demo)">
+        <span class="flex items-center">
+          <i id="api-icon" class="fa-solid fa-server text-slate-500 dark:text-slate-400 text-sm"></i>
+        </span>
+        <span class="font-semibold text-[11px] hidden md:inline text-brand-electric" id="api-text-status">Chế độ: Demo Offline</span>
+      </button>
+
+      <span class="text-slate-300 dark:text-brand-border hidden sm:inline">|</span>
+
       <button id="theme-toggle-btn" class="flex items-center space-x-2 bg-slate-100 dark:bg-brand-dark/80 hover:bg-slate-200 dark:hover:bg-brand-border px-3 py-2 rounded-lg border border-slate-200 dark:border-brand-border text-slate-700 dark:text-slate-300 transition-all duration-300 shadow-sm active:scale-95" title="Chuyển đổi giao diện Sáng/Tối">
         <span id="theme-icon-container" class="flex items-center">
           <i class="fa-solid fa-moon text-slate-600 dark:text-brand-gold text-sm"></i>
@@ -269,6 +278,32 @@
 
       const isCurrentlyDark = document.documentElement.classList.contains('dark');
       updateToggleButton(isCurrentlyDark);
+
+      // Toggle API / Demo Offline
+      const apiToggleBtn = document.getElementById('api-toggle-btn');
+      const apiTextStatus = document.getElementById('api-text-status');
+      
+      function updateApiButton() {
+        if (window.USE_REAL_API) {
+          apiTextStatus.textContent = 'Chế độ: Real API (FPT)';
+          apiToggleBtn.classList.remove('animate-pulse');
+          apiToggleBtn.classList.add('bg-brand-electric/10', 'border-brand-electric/30');
+        } else {
+          apiTextStatus.textContent = 'Chế độ: Demo Offline';
+          apiToggleBtn.classList.add('animate-pulse');
+          apiToggleBtn.classList.remove('bg-brand-electric/10', 'border-brand-electric/30');
+        }
+      }
+
+      // Initialize
+      window.USE_REAL_API = !!window.USE_REAL_API;
+      updateApiButton();
+
+      apiToggleBtn.addEventListener('click', () => {
+        window.USE_REAL_API = !window.USE_REAL_API;
+        updateApiButton();
+        console.log("USE_REAL_API set to:", window.USE_REAL_API);
+      });
 
       themeToggleBtn.addEventListener('click', () => {
         const isDark = document.documentElement.classList.toggle('dark');
