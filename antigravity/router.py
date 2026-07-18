@@ -25,15 +25,27 @@ INTENT_EXACT_LOOKUP = "exact_lookup"   # C  URL / product id / "mẫu ... này"
 INTENT_SPECIFIC = "specific_need"      # B  có ràng buộc cụ thể
 INTENT_EXPLORE = "explore"             # A  mơ hồ "muốn mua X"
 
-# category_name (DMX) + which ranking engine handles it
+# category_name (DMX) + which ranking engine handles it. Cụm ĐẶC HIỆU/nhiều từ phải
+# đứng TRƯỚC cụm ngắn (vd "máy tính bảng"/"máy tính để bàn" trước "máy tính xách tay";
+# "máy sấy quần áo" trước "máy giặt") để detect_category (khớp pattern đầu tiên) không
+# gộp nhầm. ranker=None -> chưa có engine chấm điểm riêng, đi nhánh generic (vector rerank).
 CATEGORY_PATTERNS = [
     ("Máy lạnh", "aircon", r"máy\s*lạnh|điều\s*hòa|điều\s*hoà"),
     ("Điện thoại", "phone", r"điện\s*thoại|smartphone|iphone|samsung galaxy|dt\b"),
     ("Máy tính bảng", "tablet", r"máy\s*tính\s*bảng|tablet|ipad"),
-    ("Laptop", "laptop", r"laptop|máy\s*tính\s*xách\s*tay"),
-    ("Tủ lạnh", "fridge", r"tủ\s*lạnh"),
-    ("Tivi", "tv", r"\btivi\b|\btv\b|smart\s*tv"),
+    ("Máy tính để bàn", None, r"máy\s*tính\s*để\s*bàn|desktop|pc\b|máy\s*bộ"),
+    ("Màn hình máy tính", None, r"màn\s*hình(\s*máy\s*tính|\s*vi\s*tính|\s*pc)?|monitor"),
+    ("Laptop", "laptop", r"laptop|máy\s*tính\s*xách\s*tay|notebook|macbook"),
+    ("Máy sấy quần áo", None, r"máy\s*sấy(\s*quần\s*áo|\s*đồ|\s*áo\s*quần)?"),
+    ("Máy rửa chén", None, r"máy\s*rửa\s*(chén|bát)"),
     ("Máy giặt", "washer", r"máy\s*giặt"),
+    ("Tủ đông, tủ mát", None, r"tủ\s*đông|tủ\s*mát|tủ\s*(đông\s*)?mát"),
+    ("Tủ lạnh", "fridge", r"tủ\s*lạnh"),
+    ("Máy nước nóng", None, r"máy\s*nước\s*nóng|bình\s*nóng\s*lạnh|bình\s*nước\s*nóng"),
+    ("Đồng hồ thông minh", None, r"đồng\s*hồ\s*thông\s*minh|smartwatch|smart\s*watch"),
+    ("Micro", None, r"\bmicro\b|\bmic\b|mi-?crô"),
+    ("Máy in", None, r"máy\s*in|printer"),
+    ("Tivi", "tv", r"\btivi\b|\btv\b|smart\s*tv"),
 ]
 
 _URL_RE = re.compile(r"https?://|dienmayxanh\.com", re.IGNORECASE)
