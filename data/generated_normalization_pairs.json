@@ -1,0 +1,302 @@
+[
+  {
+    "id": 1,
+    "input": "cho e hoi may giat 8kg gia bn a",
+    "output": "Cho em hỏi máy giặt 8kg giá bao nhiêu ạ?",
+    "category": "teencode"
+  },
+  {
+    "id": 2,
+    "input": "sp nao tot hon ms vs toshiba",
+    "output": "Sản phẩm nào tốt hơn giữa Samsung và Toshiba?",
+    "category": "teencode"
+  },
+  {
+    "id": 3,
+    "input": "e mun mua tu lanh cho me",
+    "output": "Em muốn mua tủ lạnh cho mẹ.",
+    "category": "teencode"
+  },
+  {
+    "id": 4,
+    "input": "cho e xin dia chi cua hang o hn",
+    "output": "Cho em xin địa chỉ cửa hàng ở Hà Nội.",
+    "category": "teencode"
+  },
+  {
+    "id": 5,
+    "input": "may giat bi rung lon lam k a",
+    "output": "Máy giặt bị rung lắc nhiều lắm không ạ?",
+    "category": "teencode"
+  },
+  {
+    "id": 6,
+    "input": "co tra gop 0% k ad",
+    "output": "Có trả góp 0% không admin?",
+    "category": "teencode"
+  },
+  {
+    "id": 7,
+    "input": "e chua hieu ro chinh sach bao hanh",
+    "output": "Em chưa hiểu rõ chính sách bảo hành.",
+    "category": "teencode"
+  },
+  {
+    "id": 8,
+    "input": "bep tu loai nao ban chay nhat",
+    "output": "Bếp từ loại nào bán chạy nhất?",
+    "category": "teencode"
+  },
+  {
+    "id": 9,
+    "input": "ad oi giao hang mat bn ngay",
+    "output": "Admin ơi giao hàng mất bao nhiêu ngày?",
+    "category": "teencode"
+  },
+  {
+    "id": 10,
+    "input": "e k biet chon dieu hoa nao",
+    "output": "Em không biết chọn điều hòa nào.",
+    "category": "teencode"
+  },
+  {
+    "id": 11,
+    "input": "may hut bui co hut nuoc dc k",
+    "output": "Máy hút bụi có hút nước được không?",
+    "category": "teencode"
+  },
+  {
+    "id": 12,
+    "input": "cho e hoi gia ti vi 55 inch",
+    "output": "Cho em hỏi giá tivi 55 inch.",
+    "category": "teencode"
+  },
+  {
+    "id": 13,
+    "input": "ban oi may lanh nao tot",
+    "output": "Bạn ơi máy lạnh nào tốt?",
+    "category": "teencode"
+  },
+  {
+    "id": 14,
+    "input": "cho minh hoi may giat 8kg gia bao nhieu",
+    "output": "Cho mình hỏi máy giặt 8kg giá bao nhiêu?",
+    "category": "no_tones"
+  },
+  {
+    "id": 15,
+    "input": "tu lanh side by side co tot khong",
+    "output": "Tủ lạnh side by side có tốt không?",
+    "category": "no_tones"
+  },
+  {
+    "id": 16,
+    "input": "dieu hoa inverter co tat khong",
+    "output": "Điều hòa inverter có tắt không?",
+    "category": "no_tones"
+  },
+  {
+    "id": 17,
+    "input": "bep tu double co an toan khong",
+    "output": "Bếp từ double có an toàn không?",
+    "category": "no_tones"
+  },
+  {
+    "id": 18,
+    "input": "ti vi 4k cua sony gia bao nhieu",
+    "output": "Tivi 4K của Sony giá bao nhiêu?",
+    "category": "no_tones"
+  },
+  {
+    "id": 19,
+    "input": "may hut bui robot co ban chay khong",
+    "output": "Máy hút bụi robot có bán chạy không?",
+    "category": "no_tones"
+  },
+  {
+    "id": 20,
+    "input": "cua hang dien may xanh o dau",
+    "output": "Cửa hàng Điện Máy Xanh ở đâu?",
+    "category": "no_tones"
+  },
+  {
+    "id": 21,
+    "input": "may say toc nao tot",
+    "output": "Máy sấy tóc nào tốt?",
+    "category": "no_tones"
+  },
+  {
+    "id": 22,
+    "input": "lo vi song dung tuong duoc khong",
+    "output": "Lò vi sóng dùng tuồng được không?",
+    "category": "no_tones"
+  },
+  {
+    "id": 23,
+    "input": "noi chien khong dau co tot khong",
+    "output": "Nồi chiên không dầu có tốt không?",
+    "category": "no_tones"
+  },
+  {
+    "id": 24,
+    "input": "may loc khong khi co that su hieu qua khong",
+    "output": "Máy lọc không khí có thật sự hiệu quả không?",
+    "category": "no_tones"
+  },
+  {
+    "id": 25,
+    "input": "binh nong lanh co ton dien khong",
+    "output": "Bình nóng lạnh có tốn điện không?",
+    "category": "no_tones"
+  },
+  {
+    "id": 26,
+    "input": "quat thong gio co that su lam mat khong",
+    "output": "Quạt thông gió có thật sự làm mát không?",
+    "category": "no_tones"
+  },
+  {
+    "id": 27,
+    "input": "may say quan ao nao tot nhat",
+    "output": "Máy sấy quần áo nào tốt nhất?",
+    "category": "no_tones"
+  },
+  {
+    "id": 28,
+    "input": "con me no cai may giat nay bao hanh bao lau the",
+    "output": "Cái máy giặt này bảo hành bao lâu vậy?",
+    "category": "profanity"
+  },
+  {
+    "id": 29,
+    "input": "dm shop giao hang cham vc, dat roi ma chua thay",
+    "output": "Shop giao hàng chậm quá, đặt rồi mà chưa thấy giao.",
+    "category": "profanity"
+  },
+  {
+    "id": 30,
+    "input": "vl thang nhan vien cs cua dm dien may xanh",
+    "output": "Nhân viên chăm sóc khách hàng của Điện Máy Xanh thái độ chưa tốt.",
+    "category": "profanity"
+  },
+  {
+    "id": 31,
+    "input": "cai dieu hoa mua ve khong chay, that me no",
+    "output": "Điều hòa mua về không chạy, cần hỗ trợ kiểm tra.",
+    "category": "profanity"
+  },
+  {
+    "id": 32,
+    "input": "con chet shop oi, tu lanh bi hong roi",
+    "output": "Shop ơi, tủ lạnh bị hỏng rồi, cần hỗ trợ.",
+    "category": "profanity"
+  },
+  {
+    "id": 33,
+    "input": "vkl, dat may tu ma bao gio thi giao",
+    "output": "Đặt bếp từ thì bao giờ thì giao hàng?",
+    "category": "profanity"
+  },
+  {
+    "id": 34,
+    "input": "may giat chay ong ong ghe, doi ngay cho",
+    "output": "Máy giặt chạy ồn quá, cần đổi trả.",
+    "category": "profanity"
+  },
+  {
+    "id": 35,
+    "input": "thang bo may lam an gian doi khach hang",
+    "output": "Cửa hàng làm ăn gian dối khách hàng.",
+    "category": "profanity"
+  },
+  {
+    "id": 36,
+    "input": "choang oi, loi cai gi ma ti vi bao gia the",
+    "output": "Trời ơi, lỗi gì mà tivi giá thế này?",
+    "category": "profanity"
+  },
+  {
+    "id": 37,
+    "input": "dm, dat hang ma khong giao the a",
+    "output": "Đặt hàng mà không giao là sao ạ?",
+    "category": "profanity"
+  },
+  {
+    "id": 38,
+    "input": "con me no, tivi bi hong ngay ngay ngay dau tien",
+    "output": "Tivi bị hỏng ngay ngày đầu tiên mua.",
+    "category": "profanity"
+  },
+  {
+    "id": 39,
+    "input": "that con chet, dat tu lanh ma giao sai hang",
+    "output": "Đặt tủ lạnh mà giao sai hàng.",
+    "category": "profanity"
+  },
+  {
+    "id": 40,
+    "input": "cho em hoi bai hat nay ten la gi",
+    "output": "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm và dịch vụ của Điện Máy Xanh.",
+    "category": "off_topic"
+  },
+  {
+    "id": 41,
+    "input": "cho em xin so dien thoai cua giao vien",
+    "output": "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm và dịch vụ của Điện Máy Xanh.",
+    "category": "off_topic"
+  },
+  {
+    "id": 42,
+    "input": "cho em hoi thoi tiet ngay mai the nao",
+    "output": "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm và dịch vụ của Điện Máy Xanh.",
+    "category": "off_topic"
+  },
+  {
+    "id": 43,
+    "input": "cho em hoi mon an ngon o dau",
+    "output": "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm và dịch vụ của Điện Máy Xanh.",
+    "category": "off_topic"
+  },
+  {
+    "id": 44,
+    "input": "cho em hoi ket qua bong da hom qua",
+    "output": "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm và dịch vụ của Điện Máy Xanh.",
+    "category": "off_topic"
+  },
+  {
+    "id": 45,
+    "input": "cho em hoi phim nay co hay khong",
+    "output": "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm và dịch vụ của Điện Máy Xanh.",
+    "category": "off_topic"
+  },
+  {
+    "id": 46,
+    "input": "cho em hoi cach lam mon ga ran",
+    "output": "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm và dịch vụ của Điện Máy Xanh.",
+    "category": "off_topic"
+  },
+  {
+    "id": 47,
+    "input": "cho em hoi bai tho nay tac gia la ai",
+    "output": "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm và dịch vụ của Điện Máy Xanh.",
+    "category": "off_topic"
+  },
+  {
+    "id": 48,
+    "input": "cho em hoi cach choi co phieu",
+    "output": "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm và dịch vụ của Điện Máy Xanh.",
+    "category": "off_topic"
+  },
+  {
+    "id": 49,
+    "input": "cho em hoi bai hat nay loi nhu the nao",
+    "output": "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm và dịch vụ của Điện Máy Xanh.",
+    "category": "off_topic"
+  },
+  {
+    "id": 50,
+    "input": "cho em hoi cach di du lich o da nang",
+    "output": "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm và dịch vụ của Điện Máy Xanh.",
+    "category": "off_topic"
+  }
+]
