@@ -7,8 +7,8 @@ artifacts/
 *.xlsx
 
 # Not needed at runtime (mock path) — slim the function bundle & cold start.
-# frontend/ is owned & deployed separately by the teammate; this deploy is API-only.
-frontend/
+# frontend/ now ships WITH this deploy (served as static via vercel.json rewrites)
+# so the app is one live URL: static UI at / + API at /api/*.
 libs/
 tests/
 scripts/

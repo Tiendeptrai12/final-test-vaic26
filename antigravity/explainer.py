@@ -10,14 +10,18 @@ deterministic code `reasons[]`, so a turn never blocks on the explainer.
 """
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from antigravity import fpt_client
 from antigravity.aircon_ranking import NeedProfile
 
-# Live-measured: gemma-4-31B-it gives natural, grounded VN prose at ~2.65s (faster than
-# Llama-3.3-70B @2.9s; Qwen3.6-27B returned null content). Full turn A+rank+B ~3.3s < 5s SLA.
-EXPLAIN_MODEL = "gemma-4-31B-it"
+# Call B (grounded prose) runs on z.ai glm-5.2 via NVIDIA integrate — teammate's key.
+# Call A (NLU, fast JSON) stays on FPT gemma. Split uses both team keys where each fits.
+# On any z.ai failure the caller falls back to deterministic code reasons[], so a turn
+# never blocks. Override via EXPLAIN_MODEL / EXPLAIN_PROVIDER env if needed.
+EXPLAIN_MODEL = os.environ.get("EXPLAIN_MODEL", "z-ai/glm-5.2")
+EXPLAIN_PROVIDER = os.environ.get("EXPLAIN_PROVIDER", "zai")
 
 _SYSTEM = (
     "Bạn là tư vấn viên máy lạnh của Điện Máy Xanh. Bạn nhận một danh sách sản phẩm ĐÃ được "
@@ -66,7 +70,8 @@ def _facts_block(items: list[dict[str, Any]], profile: NeedProfile) -> str:
 
 def explain_top(
     items: list[dict[str, Any]], profile: NeedProfile, *,
-    model: str = EXPLAIN_MODEL, timeout: float = 4.0, max_tokens: int = 320,
+    model: str = EXPLAIN_MODEL, provider: str = EXPLAIN_PROVIDER,
+    timeout: float = 4.0, max_tokens: int = 320,
 ) -> str | None:
     """Return grounded VN trade-off prose for the Top-N, or None on any failure.
 
@@ -81,6 +86,7 @@ def explain_top(
     try:
         text = fpt_client.chat_completion(
             model, messages, max_tokens=max_tokens, temperature=0.3, timeout=timeout,
+            provider=provider,
         )
     except fpt_client.FPTError:
         return None

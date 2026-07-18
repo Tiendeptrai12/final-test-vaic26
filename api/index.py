@@ -1,10 +1,10 @@
 """Vercel serverless entry (ASGI) — standalone API for the AI Product Advisor.
 
 Separate from backend.py on purpose: backend.py is the on-prem uvicorn server;
-this file is the cloud (Vercel) adapter. The teammate's frontend is deployed as its
-OWN Vercel project and calls this API cross-origin, so:
-  - this app is API-ONLY (no static frontend — the teammate owns that), and
-  - CORS is enabled so the browser is allowed to call across domains.
+this file is the cloud (Vercel) adapter. The frontend now ships in the SAME Vercel
+deploy (static UI served via vercel.json rewrites, API here at /api/*), so the app is
+one live URL. CORS stays wildcard: harmless same-origin, and keeps a standalone
+frontend deploy working too.
 
 Runtime path (live) = mock advisor in antigravity/core.py, so NO catalog data is
 required or bundled (NDA-safe). FPT_API_KEY comes from a Vercel Environment
