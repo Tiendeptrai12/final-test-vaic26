@@ -28,6 +28,7 @@ if os.environ.get("VERCEL"):
 
 from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
 from antigravity.views import router  # noqa: E402
 
 app = FastAPI(title="Điện Máy Xanh - AI Product Advisor (Vercel API)")
@@ -44,3 +45,6 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api")
+
+# Serve the static files from the 'frontend' directory at the root '/'
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
