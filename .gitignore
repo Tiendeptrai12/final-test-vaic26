@@ -78,6 +78,12 @@ memory.md
 # Secrets / local briefs / binaries (never commit)
 FPT Factory API Key.txt
 *.png
+# ...except frontend UI assets — these must ship to the repo/deploy
+!frontend/img/**
+!frontend/img/*.png
+!frontend/favicon.ico
+!frontend/icon.png
+!frontend/icon.svg
 *.docx
 *.docx.pdf
 *.pdf
