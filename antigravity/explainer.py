@@ -16,14 +16,15 @@ from typing import Any
 from antigravity import fpt_client
 from antigravity.aircon_ranking import NeedProfile
 
-# Call B (grounded prose). DEFAULT provider = fpt gemma (~2.6s) to hold the <5s SLA hard.
-# z.ai glm-5.2 (~6s, teammate key) gives richer prose but breaks the SLA — opt in with
-# EXPLAIN_PROVIDER=zai. Model auto-picks per provider so you never send z.ai's model id to
-# FPT (or vice-versa); override explicitly with EXPLAIN_MODEL. On any failure the caller
-# falls back to deterministic per-item reasons[], so a turn never blocks.
-_DEFAULT_MODELS = {"fpt": "gemma-4-31B-it", "zai": "z-ai/glm-5.2"}
-EXPLAIN_PROVIDER = os.environ.get("EXPLAIN_PROVIDER", "fpt")
-EXPLAIN_MODEL = os.environ.get("EXPLAIN_MODEL") or _DEFAULT_MODELS.get(EXPLAIN_PROVIDER, "gemma-4-31B-it")
+# Call B (grounded trade-off prose) = the reasoning-heavy step, so it runs on the BRAIN:
+# z.ai glm-5.2 (default). FPT models are the fast SERVICE tier (NLU gemma in nlu.py, and
+# bge-reranker/embeddings) — z.ai is reserved for where reasoning quality pays off, which
+# is this comparison. Cost: z.ai ~6-8s, over the <5s target; if you must hold the SLA hard,
+# set EXPLAIN_PROVIDER=fpt (gemma ~2.6s). Model auto-picks per provider so you never send
+# z.ai's model id to FPT; override with EXPLAIN_MODEL. On failure -> per-item reasons[].
+_DEFAULT_MODELS = {"zai": "z-ai/glm-5.2", "fpt": "gemma-4-31B-it"}
+EXPLAIN_PROVIDER = os.environ.get("EXPLAIN_PROVIDER", "zai")
+EXPLAIN_MODEL = os.environ.get("EXPLAIN_MODEL") or _DEFAULT_MODELS.get(EXPLAIN_PROVIDER, "z-ai/glm-5.2")
 
 _SYSTEM = (
     "Bạn là tư vấn viên máy lạnh của Điện Máy Xanh. Bạn nhận một danh sách sản phẩm ĐÃ được "

@@ -44,6 +44,13 @@ class RankedItem:
     missing_data: list[str]
     spec: dict[str, Any]
     source: dict[str, Any]
+    # DMX-rich fields (None on older BTC records) — display + grounding, straight from record
+    name: str | None = None
+    image: str | None = None
+    url: str | None = None
+    rating: float | None = None
+    quantity_sold: int | None = None
+    promotion: str | None = None
 
 
 @dataclass
@@ -254,6 +261,7 @@ def score_all(
 
 
 CSPF_MIN, CSPF_MAX = 3.0, 8.0  # typical Vietnamese aircon CSPF span
+POWER_KWH_MIN, POWER_KWH_MAX = 0.5, 3.0  # typical DMX aircon "Tiêu thụ điện" span
 
 
 def _energy_value(rec: dict[str, Any]) -> float | None:
@@ -270,6 +278,11 @@ def _energy_value(rec: dict[str, Any]) -> float | None:
     stars = _num(spec.get("energy_stars"))
     if stars is not None:
         return max(0.0, min(1.0, (stars - 1.0) / 4.0))
+    # DMX data has no CSPF/stars — use power draw (kWh) as the energy proxy: lower is
+    # better, so invert onto the same 0..1 (higher = better) scale as CSPF/stars.
+    power = _num(spec.get("power_kwh"))
+    if power is not None:
+        return max(0.0, min(1.0, 1.0 - (power - POWER_KWH_MIN) / (POWER_KWH_MAX - POWER_KWH_MIN)))
     return None
 
 
@@ -296,9 +309,18 @@ def build_reasons(rec: dict[str, Any], profile: NeedProfile) -> list[str]:
         reasons.append(f"nhãn năng lượng {stars:g} sao")
     if spec.get("inverter") is True:
         reasons.append("công nghệ Inverter")
+    power = _num(spec.get("power_kwh"))
+    if cspf is None and stars is None and power is not None:
+        reasons.append(f"tiêu thụ điện {power:g} kWh")
     amin, amax = _num(spec.get("area_min_m2")), _num(spec.get("area_max_m2"))
     if amin is not None and amax is not None:
         reasons.append(f"phù hợp phòng {amin:g}-{amax:g}m²")
+    rating = _num(rec.get("rating"))
+    if rating is not None and rating >= 4.0:
+        reasons.append(f"đánh giá {rating:g}/5")
+    sold = rec.get("quantity_sold")
+    if isinstance(sold, int) and sold >= 100:
+        reasons.append(f"đã bán {sold:,}".replace(",", "."))
     return reasons
 
 
@@ -326,12 +348,19 @@ def rank_top(
                 break
 
     scored = score_all(kept, profile)
-    # deterministic: highest score, then cheaper, then product_id
-    scored.sort(key=lambda t: (
-        -t[1],
-        t[0].get("effective_price") if isinstance(t[0].get("effective_price"), int) else 1 << 62,
-        t[0].get("product_id", ""),
-    ))
+    # deterministic tie-break (real DMX signals, stock dropped): highest score, then
+    # better-rated, then more-sold, then cheaper, then product_id.
+    def _sort_key(t):
+        rec = t[0]
+        price = rec.get("effective_price")
+        return (
+            -t[1],
+            -(_num(rec.get("rating")) or 0.0),
+            -(rec.get("quantity_sold") or 0),
+            price if isinstance(price, int) else 1 << 62,
+            rec.get("product_id", ""),
+        )
+    scored.sort(key=_sort_key)
 
     items: list[RankedItem] = []
     for rec, total, breakdown, missing in scored[:n]:
@@ -345,6 +374,12 @@ def rank_top(
             missing_data=missing,
             spec=_spec(rec),
             source=rec.get("source", {}),
+            name=rec.get("name"),
+            image=rec.get("image"),
+            url=rec.get("url"),
+            rating=_num(rec.get("rating")),
+            quantity_sold=rec.get("quantity_sold"),
+            promotion=rec.get("promotion"),
         ))
     return RankResult(items=items, relaxations=relaxations,
                       rejected_summary=dict(sorted(rejected.items())),

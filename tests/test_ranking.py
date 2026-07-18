@@ -145,3 +145,42 @@ def test_no_fabricated_stock():
     for it in res.items:
         # engine never asserts availability
         assert "stock" not in it.reasons
+
+
+# --- P4: DMX-rich signals (power_kwh energy, rating/sold tie-break, card fields) ---
+def _dmx_rec(pid, price, power_kwh, rating=None, sold=None, name=None):
+    return {
+        "product_id": pid, "brand": "LG", "effective_price": price,
+        "name": name, "image": "http://img/" + pid, "url": "http://dmx/" + pid,
+        "rating": rating, "quantity_sold": sold,
+        "category": "air_conditioner", "stock_status": "unknown",
+        "spec": {"area_min_m2": 15, "area_max_m2": 20, "indoor_noise_min_db": 30,
+                 "power_kwh": power_kwh, "inverter": True},
+        "data_quality": {"eligible_for_demo": True, "missing_fields": [], "warnings": []},
+        "source": {"type": "dmx_json", "sku": pid},
+    }
+
+
+def test_energy_from_power_kwh_lower_is_better():
+    recs = [_dmx_rec("LOW", 10_000_000, 0.7), _dmx_rec("HIGH", 10_000_000, 2.5)]
+    res = rank_top(NeedProfile(area_m2=18, priority="energy_saving"), recs, n=2)
+    assert res.items[0].product_id == "LOW"  # less power draw ranks first
+    assert res.items[0].breakdown["energy"] > res.items[1].breakdown["energy"]
+
+
+def test_tiebreak_prefers_higher_rating_then_sold():
+    # identical spec/price -> tie broken by rating, then quantity_sold
+    a = _dmx_rec("A", 10_000_000, 1.0, rating=4.2, sold=50)
+    b = _dmx_rec("B", 10_000_000, 1.0, rating=4.9, sold=10)
+    c = _dmx_rec("C", 10_000_000, 1.0, rating=4.9, sold=900)
+    res = rank_top(NeedProfile(area_m2=18), [a, b, c], n=3)
+    assert [it.product_id for it in res.items] == ["C", "B", "A"]
+
+
+def test_item_exposes_dmx_fields_and_grounded_reasons():
+    res = rank_top(NeedProfile(area_m2=18), [_dmx_rec("X", 9_000_000, 1.0, rating=4.8,
+                   sold=1500, name="Máy lạnh LG demo")], n=1)
+    it = res.items[0]
+    assert it.name == "Máy lạnh LG demo" and it.url == "http://dmx/X" and it.rating == 4.8
+    assert any("đánh giá 4.8/5" in r for r in it.reasons)
+    assert any("đã bán" in r for r in it.reasons)

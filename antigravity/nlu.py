@@ -205,8 +205,14 @@ def _item_to_dict(it: RankedItem) -> dict[str, Any]:
     """Serialize a RankedItem for the API. Numbers come only from the record."""
     return {
         "product_id": it.product_id,
+        "name": it.name,
         "brand": it.brand,
+        "image": it.image,
+        "url": it.url,
         "price": it.effective_price,
+        "rating": it.rating,
+        "quantity_sold": it.quantity_sold,
+        "promotion": it.promotion,
         "reasons": it.reasons,
         "breakdown": it.breakdown,
         "missing_data": it.missing_data,
