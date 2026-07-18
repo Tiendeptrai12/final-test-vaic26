@@ -313,16 +313,26 @@
     });
   </script>
 
-  <!-- API base URL: empty = same-origin (Vercel only mode), or set to Render backend URL -->
+  <!-- Fetch runtime config from /api/config, then load app.js -->
   <script>
-    // This is replaced at build time by Vercel env var VITE_API_BASE_URL if set.
-    // For the Render+Vercel split deployment, this will be your Render service URL.
-    window.API_BASE_URL = '__API_BASE_URL__';
-    if (!window.API_BASE_URL || window.API_BASE_URL === '__API_BASE_URL__') {
-      window.API_BASE_URL = ''; // fallback: same-origin (Vercel serverless)
-    }
+    (function () {
+      function loadApp() {
+        var s = document.createElement('script');
+        s.src = 'js/app.js';
+        document.body.appendChild(s);
+      }
+      fetch('/api/config')
+        .then(function (r) { return r.json(); })
+        .then(function (cfg) {
+          window.API_BASE_URL = cfg.api_base_url || '';
+          console.log('[Config] API_BASE_URL =', window.API_BASE_URL || '(same-origin)');
+        })
+        .catch(function () {
+          window.API_BASE_URL = ''; // fallback: same-origin
+        })
+        .finally(loadApp);
+    })();
   </script>
-  <script src="js/app.js"></script>
 </body>
 
 </html>
