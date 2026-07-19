@@ -29,7 +29,6 @@ if os.environ.get("VERCEL"):
 from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
-from fastapi.responses import JSONResponse  # noqa: E402
 from antigravity.views import router  # noqa: E402
 
 app = FastAPI(title="Điện Máy Xanh - AI Product Advisor (Vercel API)")
@@ -44,13 +43,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
-
-@app.get("/api/config")
-async def get_config():
-    """Return runtime config to the frontend — backend URL injected from Vercel env var."""
-    return JSONResponse({
-        "api_base_url": os.environ.get("RENDER_BACKEND_URL", "")
-    })
 
 app.include_router(router, prefix="/api")
 

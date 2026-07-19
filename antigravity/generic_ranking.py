@@ -27,6 +27,10 @@ class GenericNeed:
     budget_min: int | None = None
     priority: str | None = None          # only "price" is meaningful here
     brands: list[str] = field(default_factory=list)
+    # choose-factors: weight_keys the user prioritized. This engine only has
+    # rating/popularity/price, so only those keys boost here; spec-based factor keys
+    # (capacity/battery/…) are ignored by the ranker but still drive decision.py.
+    factor_priorities: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -47,6 +51,10 @@ class GenericItem:
 # grounded field parsers (raw DMX value formats)
 # --------------------------------------------------------------------------- #
 def _price(rec: dict[str, Any]) -> int | None:
+    # canonical demo_catalog shape first (effective_price int), then raw DMX columns.
+    v = rec.get("effective_price")
+    if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0:
+        return int(v)
     for k in ("Giá khuyến mãi", "Giá gốc"):
         v = rec.get(k)
         if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0:
@@ -55,6 +63,10 @@ def _price(rec: dict[str, Any]) -> int | None:
 
 
 def _rating(rec: dict[str, Any]) -> float | None:
+    # canonical `rating` (float) first, then raw `rating_vote` (string).
+    v = rec.get("rating")
+    if isinstance(v, (int, float)) and not isinstance(v, bool) and 0 < v <= 5:
+        return float(v)
     try:
         r = float(str(rec.get("rating_vote") or "").replace(",", "."))
         return r if 0 < r <= 5 else None
@@ -63,8 +75,11 @@ def _rating(rec: dict[str, Any]) -> float | None:
 
 
 def _sold(rec: dict[str, Any]) -> int | None:
-    """'14,5k' -> 14500, '1.234' -> 1234, '' -> None."""
-    s = str(rec.get("quantity_sold") or "").strip().lower().replace(" ", "")
+    """canonical `quantity_sold` (int) first, then raw string '14,5k' -> 14500."""
+    v = rec.get("quantity_sold")
+    if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0:
+        return int(v)
+    s = str(v or "").strip().lower().replace(" ", "")
     if not s:
         return None
     m = re.match(r"^([\d.,]+)k$", s)
@@ -78,6 +93,11 @@ def _sold(rec: dict[str, Any]) -> int | None:
 # filter + score
 # --------------------------------------------------------------------------- #
 def _passes(rec: dict[str, Any], need: GenericNeed) -> bool:
+    # demo_catalog records carry an explicit eligibility gate (same as aircon). Raw DMX
+    # records have no such flag -> treated as eligible.
+    dq = rec.get("data_quality")
+    if isinstance(dq, dict) and dq.get("eligible_for_demo") is False:
+        return False
     price = _price(rec)
     if need.budget_max and (price is None or price > need.budget_max):
         return False
@@ -96,8 +116,16 @@ _BASE_W = {"rating": 0.45, "popularity": 0.35, "price": 0.20}
 _PRICE_BOOST = {"rating": 0.25, "popularity": 0.20, "price": 0.55}
 
 
+_FACTOR_DELTA = 0.35
+
+
 def _weights(need: GenericNeed) -> dict[str, float]:
-    return dict(_PRICE_BOOST) if need.priority == "price" else dict(_BASE_W)
+    w = dict(_PRICE_BOOST) if need.priority == "price" else dict(_BASE_W)
+    for wk in getattr(need, "factor_priorities", []) or []:
+        if wk in w:
+            w[wk] += _FACTOR_DELTA
+    total = sum(w.values())
+    return {k: v / total for k, v in w.items()}  # renormalize to sum 1
 
 
 def _norm(v, vals, higher_better):
@@ -122,7 +150,7 @@ def _reasons(rec: dict[str, Any]) -> list[str]:
     sold = _sold(rec)
     if sold:
         out.append(f"đã bán {sold:g}")
-    w = (rec.get("chính sách bảo hành") or "").strip()
+    w = str(rec.get("warranty") or rec.get("chính sách bảo hành") or "").strip()
     if w:
         out.append(f"bảo hành {w}")
     return out
@@ -158,14 +186,49 @@ def rank_generic(need: GenericNeed, records: list[dict[str, Any]], n: int = 3) -
     out = []
     for r, total, bd in scored[:n]:
         out.append(GenericItem(
-            product_id=str(r.get("product_id", "")), name=r.get("tên sản phẩm"),
+            product_id=str(r.get("product_id", "")),
+            name=r.get("name") or r.get("tên sản phẩm"),
             brand=r.get("brand"), price=_price(r), url=r.get("url"), rating=_rating(r),
             total_score=round(total, 4), breakdown={k: round(v, 4) for k, v in bd.items()},
-            reasons=_reasons(r), spec={},
+            reasons=_reasons(r),
+            # surface the raw DMX spec so decision.py can best-effort parse numbers for
+            # factor scoring (canonical keys may not match raw column names — neutral 0.5
+            # fallback covers that; never invents data).
+            spec=(r.get("spec_product") or r.get("spec") or {}),
         ))
     return out
 
 
+# category_name (DMX) -> demo_catalog file slug (dmx_<slug>.all.jsonl). Cùng quy ước
+# đặt tên với dmx_air_conditioner.all.jsonl. Ngành nào có file bundled thì chạy được
+# trên Vercel (NDA-safe demo data); ngành không có -> fallback raw json (chỉ local).
+CATEGORY_SLUG: dict[str, str] = {
+    "Tủ lạnh": "tu_lanh",
+    "Máy giặt": "may_giat",
+    "Máy sấy quần áo": "may_say_quan_ao",
+    "Máy rửa chén": "may_rua_chen",
+    "Máy nước nóng": "may_nuoc_nong",
+    "Tủ đông, tủ mát": "tu_dong_tu_mat",
+    "Máy tính bảng": "may_tinh_bang",
+    "Đồng hồ thông minh": "dong_ho_thong_minh",
+    "Micro": "micro",
+    "Máy tính để bàn": "may_tinh_de_ban",
+    "Màn hình máy tính": "man_hinh_may_tinh",
+    "Máy in": "may_in",
+}
+
+
 def load_category_records(category_name: str) -> list[dict[str, Any]]:
-    """Raw DMX records for any category (by canonical category_name). [] if data absent."""
+    """Records cho 1 ngành (theo category_name DMX). Ưu tiên demo_catalog canonical
+    (bundled, chạy được trên Vercel); nếu ngành không có file demo thì fallback raw
+    NDA json (chỉ có ở local). [] nếu cả hai đều vắng — KHÔNG bịa sản phẩm."""
+    slug = CATEGORY_SLUG.get(category_name)
+    if slug:
+        try:
+            from antigravity import btc_catalog
+            records = btc_catalog.load_category(slug)
+            if records:
+                return records
+        except Exception:  # noqa: BLE001 — file thiếu/không đọc được -> thử raw json
+            pass
     return load_default_records(category_name)

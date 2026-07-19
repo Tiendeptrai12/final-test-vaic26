@@ -93,9 +93,11 @@ def test_extract_code_switching(monkeypatch):
 
 
 def test_extract_missing_slots(monkeypatch):
+    # Choose-factors flow: only category is hard-required, so a resolved category
+    # with no area/budget is complete — budget is now a consideration factor.
     _mock_llm(monkeypatch, {"category": "Máy lạnh", "priority": "energy_saving"})  # no area/budget
     p, missing, _ = nlu.extract_need_profile("tư vấn máy lạnh tiết kiệm điện")
-    assert set(missing) == {"area_m2", "budget_max"}
+    assert missing == []
     assert p.priority == "energy_saving"
 
 
@@ -103,7 +105,7 @@ def test_extract_malformed_json_fallback(monkeypatch):
     _mock_llm(monkeypatch, "sorry I cannot help with that")
     p, missing, raw = nlu.extract_need_profile("hello")
     assert p == NeedProfile()
-    assert set(missing) == {"category", "budget_max"}
+    assert set(missing) == {"category"}
     assert raw is None
 
 
@@ -113,7 +115,7 @@ def test_extract_llm_error_fallback(monkeypatch):
     monkeypatch.setattr(fpt_client, "chat_completion", boom)
     p, missing, raw = nlu.extract_need_profile("máy lạnh 20 triệu 18m2")
     assert p == NeedProfile() and raw is None
-    assert set(missing) == {"category", "budget_max"}
+    assert set(missing) == {"category"}
 
 
 # --- follow-up templates ----------------------------------------------------
@@ -135,10 +137,11 @@ def _rec(pid, price, amin, amax, noise, cspf, brand="Daikin"):
 
 
 def test_advise_need_info(monkeypatch):
-    _mock_llm(monkeypatch, {"category": "Máy lạnh", "priority": "quiet"})
-    out = nlu.advise("máy lạnh chạy êm")
+    # No category resolved -> the only remaining hard-required slot drives hỏi-ngược.
+    _mock_llm(monkeypatch, {"priority": "quiet"})
+    out = nlu.advise("tư vấn đồ chạy êm")
     assert out["status"] == "need_info"
-    assert set(out["missing"]) == {"area_m2", "budget_max"}
+    assert set(out["missing"]) == {"category"}
     assert out["questions"]
 
 

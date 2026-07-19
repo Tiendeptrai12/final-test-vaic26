@@ -184,12 +184,16 @@ function updateSystemStatus(online) {
   }
 }
 
-async function callBackendChat(query) {
+async function callBackendChat(query, chosenFactors) {
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, profile: currentProfile || {} }),
+      body: JSON.stringify({
+        query,
+        profile: currentProfile || {},
+        chosen_factors: chosenFactors || []
+      }),
       signal: AbortSignal.timeout(20000)
     });
     if (!res.ok) {
@@ -229,12 +233,21 @@ function renderBackendResponse(data, startTime) {
     if (labelMap[cat]) updateActiveSessionTitle(labelMap[cat], cat);
   }
 
+  // --- CHOOSE FACTORS: present ≤4 consideration factors (3-layer) + A/B/C/D chips ---
+  if (mode === 'choose_factors') {
+    renderChooseFactors(data);
+    return;
+  }
+
   if (mode === 'need_info' || items.length === 0) {
     // Câu hỏi hỏi ngược hoặc chưa đủ thông tin
     const html = `<p class="text-sm">${message}</p>`;
     appendAssistantMessage(html);
     return;
   }
+
+  // Decision badge (1 dominant vs 3 trade-offs)
+  const decKind = data.decision && data.decision.kind;
 
   // Render message intro
   if (message) {
@@ -251,14 +264,21 @@ function renderBackendResponse(data, startTime) {
       const reasons = (item.reasons || []).slice(0, 2);
       const reasonsHtml = reasons.map(r => `<li class="flex items-start gap-1"><i class="fa-solid fa-check text-emerald-500 mt-0.5 text-[10px] shrink-0"></i><span>${r}</span></li>`).join('');
       const brand = item.brand || '';
+      // choose-factors decision tags: single = "nổi trội nhất"; tradeoff = "mạnh về <factor>"
+      const badge = decKind === 'single'
+        ? '<span class="px-2 py-0.5 text-[10px] font-bold bg-emerald-200/60 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200 rounded">★ Nổi trội nhất</span>'
+        : `<span class="px-2 py-0.5 text-[10px] font-bold bg-amber-200/50 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200 rounded">Đề xuất ${idx + 1}</span>`;
+      const winsOn = (decKind === 'tradeoff' && item._wins_on)
+        ? `<span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold"><i class="fa-solid fa-trophy text-[9px] mr-0.5"></i>mạnh về: ${item._wins_on}</span>` : '';
 
       cardsHtml += `
         <div class="bg-amber-50/60 dark:bg-amber-950/20 rounded-xl p-4 border border-amber-200/80 dark:border-amber-500/20 flex flex-col justify-between space-y-3 shadow-sm transition-all hover:shadow-md hover:border-amber-400/80">
           <div>
             <div class="flex items-center justify-between mb-1">
-              <span class="px-2 py-0.5 text-[10px] font-bold bg-amber-200/50 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200 rounded">Đề xuất ${idx + 1}</span>
+              ${badge}
               ${brand ? `<span class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">${brand}</span>` : ''}
             </div>
+            ${winsOn ? `<div class="mb-1">${winsOn}</div>` : ''}
             <h3 class="font-bold text-[12.5px] text-slate-900 dark:text-white mt-1 leading-snug">${name}</h3>
             ${price ? `<div class="text-[15px] font-extrabold text-blue-600 dark:text-brand-electric mt-1.5">${price}</div>` : ''}
             ${reasonsHtml ? `<ul class="text-[11px] text-slate-600 dark:text-slate-400 mt-2.5 space-y-1 bg-white/80 dark:bg-brand-dark/40 p-2.5 rounded-lg border border-amber-100 dark:border-brand-border/30">${reasonsHtml}</ul>` : ''}
@@ -283,6 +303,102 @@ function renderBackendResponse(data, startTime) {
     appendAssistantMessage(exHtml);
   }
 }
+
+// ==========================================
+// CHOOSE-FACTORS UI (yếu tố cân nhắc — 3 tầng ngôn ngữ + A/B/C/D)
+// ==========================================
+let lastQuery = '';               // resent verbatim when the user confirms factors
+let selectedFactors = [];         // ids picked this round (max 4); budget uses "budget:tier"
+
+function renderChooseFactors(data) {
+  selectedFactors = [];
+  const factors = data.factors || [];
+  const room = data.room_context || [];
+  const roomHtml = room.length
+    ? `<p class="text-[11px] text-slate-400 mb-2 italic"><i class="fa-solid fa-location-dot mr-1"></i>Gợi ý theo không gian: ${room.join(' · ')}</p>` : '';
+
+  let html = `<p class="text-sm mb-2">${data.message || 'Anh/chị ưu tiên yếu tố nào ạ?'}</p>${roomHtml}`;
+  html += `<div class="flex flex-col gap-2.5 mt-1">`;
+  factors.forEach(f => {
+    const ctx = (f.contextual || []).map(c =>
+      `<span class="px-1.5 py-0.5 text-[10px] rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">${c}</span>`).join(' ');
+    if (f.budget_tier) {
+      // budget factor -> tier chips thấp / trung bình / cao
+      const tiers = (f.tier_options || []).map(t =>
+        `<button data-factor="budget:${t.key}" class="factor-chip px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-slate-300 dark:border-slate-600 hover:border-brand-electric transition-all">
+           ${t.label}<span class="block text-[9px] font-normal text-slate-400">${t.hint}</span></button>`).join('');
+      html += `
+        <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-900/30">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="w-5 h-5 flex items-center justify-center rounded-md bg-brand-electric/15 text-brand-electric text-[11px] font-bold">${f.letter}</span>
+            <span class="text-[12.5px] font-bold text-slate-800 dark:text-slate-100">${f.spec_label}</span>
+          </div>
+          <p class="text-[11.5px] text-slate-600 dark:text-slate-300 mb-2">${f.simple_label}</p>
+          <div class="flex flex-wrap gap-1.5">${tiers}</div>
+        </div>`;
+    } else {
+      html += `
+        <button data-factor="${f.id}" class="factor-chip text-left p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-900/30 hover:border-brand-electric transition-all">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-5 h-5 flex items-center justify-center rounded-md bg-brand-electric/15 text-brand-electric text-[11px] font-bold">${f.letter}</span>
+            <span class="text-[12.5px] font-bold text-slate-800 dark:text-slate-100">${f.spec_label}</span>
+          </div>
+          <p class="text-[11.5px] text-slate-600 dark:text-slate-300 mb-1.5">${f.simple_label}</p>
+          <div class="flex flex-wrap gap-1">${ctx}</div>
+        </button>`;
+    }
+  });
+  html += `</div>`;
+  html += `<button id="confirm-factors-btn" class="mt-3 w-full custom-btn-select text-xs py-2.5 rounded-xl font-bold opacity-50 pointer-events-none transition-all">Xác nhận ưu tiên</button>`;
+  appendAssistantMessage(html);
+}
+
+// delegated: toggle a factor chip (multi-select, max 4). Budget tier is single-choice
+// within its group (picking a new tier replaces the old budget:* selection).
+window.toggleFactorChip = function(btn) {
+  const fid = btn.getAttribute('data-factor');
+  if (!fid) return;
+  const isBudget = fid.startsWith('budget:');
+  if (isBudget) {
+    // drop any prior budget:* then toggle this one
+    selectedFactors = selectedFactors.filter(x => !x.startsWith('budget:'));
+    document.querySelectorAll('.factor-chip[data-factor^="budget:"]').forEach(b => {
+      b.classList.remove('ring-2', 'ring-brand-electric', 'border-brand-electric');
+    });
+    selectedFactors.push(fid);
+    btn.classList.add('ring-2', 'ring-brand-electric', 'border-brand-electric');
+  } else {
+    const i = selectedFactors.indexOf(fid);
+    if (i >= 0) {
+      selectedFactors.splice(i, 1);
+      btn.classList.remove('ring-2', 'ring-brand-electric', 'border-brand-electric');
+    } else {
+      if (selectedFactors.filter(x => !x.startsWith('budget:')).length >= 4) return; // max 4
+      selectedFactors.push(fid);
+      btn.classList.add('ring-2', 'ring-brand-electric', 'border-brand-electric');
+    }
+  }
+  const confirm = document.getElementById('confirm-factors-btn');
+  if (confirm) {
+    const on = selectedFactors.length > 0;
+    confirm.classList.toggle('opacity-50', !on);
+    confirm.classList.toggle('pointer-events-none', !on);
+  }
+};
+
+window.confirmFactors = function() {
+  if (!selectedFactors.length) return;
+  const chosen = selectedFactors.slice();
+  const summary = chosen.map(c => c.startsWith('budget:') ? 'Ngân sách: ' + c.split(':')[1] : c).join(', ');
+  appendUserMessage('Ưu tiên: ' + summary);
+  showTypingIndicator();
+  const startTime = performance.now();
+  callBackendChat(lastQuery, chosen).then(data => {
+    removeTypingIndicator();
+    if (data) renderBackendResponse(data, startTime);
+    else appendAssistantMessage('<p class="text-sm">Dạ hệ thống đang bận, anh/chị thử lại giúp em nhé.</p>');
+  });
+};
 
 // ==========================================
 // HỆ THỐNG ĐIỀU KHIỂN ĐÓNG/MỞ SIDEBAR
@@ -371,6 +487,10 @@ function formatVND(amount) {
 }
 
 document.addEventListener('click', function(e) {
+  const confirmBtn = e.target && e.target.closest && e.target.closest('#confirm-factors-btn');
+  if (confirmBtn) { window.confirmFactors(); return; }
+  const chip = e.target && e.target.closest && e.target.closest('.factor-chip');
+  if (chip) { window.toggleFactorChip(chip); return; }
   if (e.target && e.target.classList.contains('custom-btn-select')) {
     window.handleBuyProduct();
   }
@@ -672,6 +792,7 @@ async function dispatchLogicEngine(text) {
   document.getElementById('rag-faq-status').textContent = 'Không khớp FAQ';
 
   // --- Gọi Backend AI thật (Vercel /api/chat) ---
+  lastQuery = text;  // remembered so confirmFactors() can resend it with chosen_factors
   const data = await callBackendChat(text);
   if (data) {
     removeTypingIndicator();

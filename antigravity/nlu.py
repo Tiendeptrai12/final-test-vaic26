@@ -255,7 +255,12 @@ def coerce_profile(obj: dict[str, Any]) -> NeedProfile:
 
 _PROFILE_FIELDS = ("category", "budget_max", "budget_min", "area_m2", "usage", "room_type",
                    "sunny", "priority", "inverter_required", "brands",
-                   "household_size", "capacity_liters", "battery_priority", "portability_priority")
+                   "household_size", "capacity_liters", "battery_priority", "portability_priority",
+                   "factor_priorities")
+
+# list-valued profile slots merge like `brands`: a non-empty new value wins, else keep prior
+# (so factor choices from a prior turn survive when the follow-up doesn't re-send them).
+_LIST_SLOTS = ("brands", "factor_priorities")
 
 
 def merge_profiles(prior: NeedProfile, new: NeedProfile) -> NeedProfile:
@@ -268,17 +273,24 @@ def merge_profiles(prior: NeedProfile, new: NeedProfile) -> NeedProfile:
     out: dict[str, Any] = {}
     for f in _PROFILE_FIELDS:
         nv, pv = getattr(new, f), getattr(prior, f)
-        if f == "brands":
+        if f in _LIST_SLOTS:
             out[f] = nv if nv else pv
         else:
             out[f] = nv if nv is not None else pv
     return NeedProfile(**out)
 
 
-def required_slots(profile: NeedProfile) -> tuple[str, ...]:
-    """Critical slots theo TỪNG NGÀNH: mọi ngành cần category + budget; mỗi ngành
-    có thêm slot đặc thù (CATEGORY_SLOT_SCHEMA) — vd máy lạnh cần diện tích, tủ
-    lạnh/máy giặt cần số người, tủ đông cần dung tích, đồng hồ TM cần ưu tiên pin."""
+def required_slots(_profile: NeedProfile) -> tuple[str, ...]:
+    """Choose-factors flow: only the category is hard-required. Budget became a
+    consideration factor (thấp/TB/cao) and the old per-ngành slots (diện tích, số
+    người…) are now optional refinements the user can express via factor choices —
+    so we no longer block the turn on them. `_LEGACY_REQUIRED_SLOTS` keeps the old
+    behavior available for callers/tests that still want strict slot-filling."""
+    return ("category",)
+
+
+def legacy_required_slots(profile: NeedProfile) -> tuple[str, ...]:
+    """Pre-choose-factors strict slots (category + budget + per-ngành extra)."""
     extra = CATEGORY_SLOT_SCHEMA.get(profile.category or "", ())
     return ("category", "budget_max", *extra)
 
@@ -419,31 +431,38 @@ def advise(
             "raw_llm": raw,
         }
 
+    result = _rank_profile(profile, records=records, n=n, pool=pool)
+    return {"status": "ok", "profile": profile_dict, "result": result, "raw_llm": raw}
+
+
+def _rank_profile(profile: NeedProfile, *, records: list[dict[str, Any]] | None = None,
+                  n: int = 3, pool: int | None = None) -> Any:
+    """Route a fully-resolved profile to its ranking engine and return a result with
+    `.items` + `.relaxations`. Shared by advise() and the choose-factors flow so both
+    rank identically. `profile.factor_priorities` flows into each engine's weights."""
     ranker = CATEGORY_RANKER.get(profile.category or "")
     if ranker == "phone":
         from antigravity import phone_ranking
         phone_records = records if records is not None else phone_ranking.load_default_records()
         items = phone_ranking.rank_phones(_phone_need_from_profile(profile), phone_records, n=n)
-        result: Any = _SimpleResult(items=items, relaxations=[])
-    elif ranker == "aircon":
-        result = rank_top(profile, records=records, n=n, pool=pool)
-    elif profile.category:
-        # Generic fallback engine: any DMX category without a dedicated spec ranker is ranked
-        # on grounded record signals (price/rating/popularity) instead of returning empty.
-        # Loads raw records by canonical category_name; [] when the catalog isn't present.
+        return _SimpleResult(items=items, relaxations=[])
+    if ranker == "aircon":
+        # aircon engine reads profile.factor_priorities directly in _weights()
+        return rank_top(profile, records=records, n=n, pool=pool)
+    if profile.category:
+        # Generic fallback engine: grounded price/rating/popularity signals. Chosen
+        # factor weight_keys that this engine has (rating/popularity/price) boost here.
         from antigravity import generic_ranking
         gen_records = records if records is not None else \
             generic_ranking.load_category_records(profile.category)
         need = generic_ranking.GenericNeed(
             budget_max=profile.budget_max, budget_min=profile.budget_min,
-            priority=profile.priority, brands=list(profile.brands))
+            priority=profile.priority, brands=list(profile.brands),
+            factor_priorities=list(profile.factor_priorities or []))
         items = generic_ranking.rank_generic(need, gen_records, n=n)
-        result = _SimpleResult(items=items, relaxations=[])
-    else:
-        # no category resolved at all -> honest empty, never a wrong-engine guess
-        result = _SimpleResult(items=[], relaxations=[])
-
-    return {"status": "ok", "profile": profile_dict, "result": result, "raw_llm": raw}
+        return _SimpleResult(items=items, relaxations=[])
+    # no category resolved at all -> honest empty, never a wrong-engine guess
+    return _SimpleResult(items=[], relaxations=[])
 
 
 # --------------------------------------------------------------------------- #
@@ -559,6 +578,7 @@ def _build_chat_response_raw(
     records: list[dict[str, Any]] | None = None, n: int = 3, timeout: float = 3.0,
     explain: bool = True, prior_profile: dict[str, Any] | None = None,
     selected_products: list[dict[str, Any]] | None = None,
+    chosen_factors: list[str] | None = None,
 ) -> dict[str, Any]:
     """Wrap advise() into a flat, frontend-friendly, JSON-safe contract.
 
@@ -609,20 +629,22 @@ def _build_chat_response_raw(
         return {"query": text, "mode": "fit", "evaluation": fit,
                 "message": _advise_from_fit(fit), "profile": prof0, "safety_checked": True}
 
-    # --- else: recommendation path (C1..C5) ---
-    # abstract lifestyle need -> front-load it as the top reranker criterion
-    rerank_query = _cmp.priority_rerank_query(text, text)
+    # --- else: recommendation / choose-factors path (C1..C5) ---
+    from antigravity import factors as _factors, decision as _decision
 
-    # Reranker service (bge) reorders a bigger candidate pool by semantic relevance to the
-    # raw query, then we slice to n. Env-gated (default on). pool = extra candidates fetched
-    # without changing the filter/relaxation threshold.
-    use_reranker = os.environ.get("USE_RERANKER", "1").strip().lower() not in ("0", "false", "no")
-    pool = max(n, 8) if use_reranker else None
-    out = advise(text, history, records=records, n=n, timeout=timeout,
-                 prior_profile=prior_profile, pool=pool)
+    # Extract needs ONCE (category, budget, brands…), then merge prior-turn slots and
+    # apply this turn's factor choices. Doing it here (not via advise) keeps the flow to a
+    # single LLM extraction even though we gate on the profile before ranking.
+    profile, _m, raw = extract_need_profile(text, history, timeout=timeout)
+    if prior_profile:
+        profile = merge_profiles(NeedProfile(**prior_profile), profile)
+    if chosen_factors and profile.category:
+        profile = _factors.apply_factor_choices(profile, profile.category, chosen_factors)
+    profile_dict = vars(profile)
+
     base: dict[str, Any] = {
         "query": text,
-        "profile": out.get("profile", {}),
+        "profile": profile_dict,
         "questions": [],
         "items": [],
         "relaxations": [],
@@ -630,31 +652,63 @@ def _build_chat_response_raw(
         "safety_checked": True,
     }
 
-    if out["status"] == "need_info":
-        qs = out.get("questions", [])
+    # (1) category still unknown -> ask which product (the only hard-required slot now)
+    if profile.category is None:
         base["mode"] = "need_info"
-        base["message"] = " ".join(qs) or "Bạn bổ sung thêm thông tin giúp mình nhé."
-        base["questions"] = qs
+        base["questions"] = [FOLLOWUP_QUESTIONS["category"]]
+        base["message"] = FOLLOWUP_QUESTIONS["category"]
         return base
 
-    result: RankResult = out["result"]
+    # (2) category known, factors defined, none chosen yet -> present the 4 factors
+    #     (3-layer language + A/B/C/D). Skip straight to ranking if the user already
+    #     picked (factor_priorities carried in profile) or sent choices this turn.
+    if (_factors.has_factors(profile.category) and not profile.factor_priorities
+            and not chosen_factors):
+        payload = _factors.choose_factors_payload(profile.category)
+        base["mode"] = "choose_factors"
+        base["message"] = payload["message"]
+        base["factors"] = payload["factors"]
+        base["room_context"] = payload["room_context"]
+        return base
+
+    # (3) rank with the chosen factors' weight boosts
+    use_reranker = os.environ.get("USE_RERANKER", "1").strip().lower() not in ("0", "false", "no")
+    pool = max(n, 8) if use_reranker else None
+    # over-fetch a bit more so the dominance/near-tie decision has a real pool to judge
+    rank_n = max(n, 6)
+    result: RankResult = _rank_profile(profile, records=records, n=rank_n, pool=pool)
+    rerank_query = _cmp.priority_rerank_query(text, text)
     base["mode"] = "recommendation"
     pool_items = [_item_to_dict(it) for it in result.items]
     # SERVICE stage: bge-reranker reorders the code-approved pool by semantic relevance to
-    # the raw query, then slice to n. Falls back to code order on any failure.
-    base["items"] = _rerank_items(rerank_query, pool_items, n, timeout) if use_reranker else pool_items[:n]
+    # the raw query. Keep the fuller pool (rank_n) so the decision layer can still judge
+    # dominance vs near-tie; falls back to code order on any failure.
+    ranked_items = (_rerank_items(rerank_query, pool_items, rank_n, timeout)
+                    if use_reranker else pool_items[:rank_n])
     base["relaxations"] = result.relaxations
-    if not result.items:
+
+    # DECISION: 1 dominant product vs 3 near-equal trade-offs, judged on the chosen factors.
+    cat_factors = _factors.factors_for(profile.category)
+    dec = _decision.decide(ranked_items, cat_factors, chosen_factors or [])
+    base["items"] = dec["items"][:n] if dec["kind"] != "single" else dec["items"]
+    base["decision"] = {"kind": dec["kind"], "confirm": dec.get("confirm", False)}
+
+    if not base["items"]:
         # no-results terminal (guardrail code_rules.no_results_terminal): never fabricate
         base["message"] = ("Chưa có sản phẩm phù hợp với tiêu chí này. "
                            "Bạn thử nới ngân sách hoặc diện tích nhé.")
     else:
-        base["message"] = "Đây là Top gợi ý phù hợp nhất với nhu cầu của bạn:"
+        if dec["kind"] == "single":
+            base["message"] = "Sản phẩm này nổi trội hẳn theo ưu tiên của bạn — em gợi ý luôn:"
+        elif dec["kind"] == "tradeoff":
+            base["message"] = ("Có vài lựa chọn cân bằng (trade-off không lớn) — anh/chị "
+                               "xem và chốt giúp em nhé:")
+        else:
+            base["message"] = "Đây là Top gợi ý phù hợp nhất với nhu cầu của bạn:"
         if result.relaxations:
             base["message"] += " (đã nới nhẹ tiêu chí: " + ", ".join(result.relaxations) + ")"
         if explain:
             from antigravity.explainer import explain_top
-            profile = NeedProfile(**out["profile"])
             # z.ai glm-5.2 (Call B) measures ~6s; give it headroom so the grounded
             # trade-off prose actually renders instead of silently degrading. Slightly
             # over the <5s target — switch EXPLAIN_PROVIDER=fpt (gemma ~2.6s) if the SLA
@@ -683,6 +737,7 @@ def build_chat_response(
     records: list[dict[str, Any]] | None = None, n: int = 3, timeout: float = 3.0,
     explain: bool = True, prior_profile: dict[str, Any] | None = None,
     selected_products: list[dict[str, Any]] | None = None,
+    chosen_factors: list[str] | None = None,
 ) -> dict[str, Any]:
     from antigravity.guardrails import check_input_safety, check_output_safety
 
@@ -695,7 +750,7 @@ def build_chat_response(
     res = _build_chat_response_raw(
         text, history, records=records, n=n, timeout=timeout,
         explain=explain, prior_profile=prior_profile,
-        selected_products=selected_products
+        selected_products=selected_products, chosen_factors=chosen_factors
     )
 
     # 3. Run Output Guardrails on the advisor messages

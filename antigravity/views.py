@@ -18,6 +18,9 @@ class QueryRequest(BaseModel):
     # products the user referenced (for compare / fit / compatibility / upgrade), resolved
     # by the UI or vector search. Empty for the normal recommendation flow.
     selected_products: list[dict] | None = None
+    # choose-factors flow: the consideration-factor ids the user picked (A/B/C/D). The
+    # budget factor carries its tier as "budget:low|mid|high". Empty on the first turn.
+    chosen_factors: list[str] | None = None
 
 @router.get("/health")
 async def health_check():
@@ -84,7 +87,8 @@ async def chat_endpoint(request: QueryRequest):
         if btc_catalog.is_real_catalog():
             from antigravity.nlu import build_chat_response
             return build_chat_response(request.query, prior_profile=request.profile,
-                                       selected_products=request.selected_products)
+                                       selected_products=request.selected_products,
+                                       chosen_factors=request.chosen_factors)
         return advisor.query_advisor(request.query)
     except Exception:
         logger.exception("chat_endpoint error for query: %s", request.query[:100])

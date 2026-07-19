@@ -7,7 +7,8 @@ jsonschema
 pytest
 pytest-asyncio
 httpx
+python-dotenv>=1.0
 dirtyjson
 qdrant-client
-llama-index-core
+llama-index-core>=0.14,<0.15
 llama-index-vector-stores-qdrant

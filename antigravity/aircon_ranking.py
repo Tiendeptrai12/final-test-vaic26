@@ -38,6 +38,10 @@ class NeedProfile:
     capacity_liters: float | None = None   # dung tích lít (tủ đông, tủ mát)
     battery_priority: bool | None = None   # ưu tiên pin lâu (đồng hồ TM / máy tính bảng)
     portability_priority: bool | None = None  # ưu tiên nhỏ gọn (micro / máy tính bảng)
+    # choose-factors flow: weight_keys the user chose to prioritize (factors.py). Each
+    # boosts its matching ranking dimension; empty = plain base weights. Additive to the
+    # legacy single `priority` slot (both are honored).
+    factor_priorities: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -186,11 +190,22 @@ _PRIORITY_BOOST = {
 }
 
 
+# choose-factors flow: each chosen weight_key bumps its dimension by this delta
+# (same magnitude as a legacy priority boost) before renormalizing.
+_FACTOR_DELTA = 0.35
+
+
 def _weights(profile: NeedProfile) -> dict[str, float]:
     w = dict(_BASE_WEIGHTS)
     boost = _PRIORITY_BOOST.get(profile.priority or "", {})
     for k, extra in boost.items():
         w[k] += extra
+    # choose-factors: boost every chosen weight_key that this engine actually has
+    # (price/noise/energy/capacity). Unknown keys — e.g. generic "popularity" — are
+    # ignored here; they only matter to the generic engine.
+    for wk in getattr(profile, "factor_priorities", []) or []:
+        if wk in w:
+            w[wk] += _FACTOR_DELTA
     if profile.room_type == "bedroom":
         w["noise"] += 0.10  # quiet matters more in a bedroom
     total = sum(w.values())
