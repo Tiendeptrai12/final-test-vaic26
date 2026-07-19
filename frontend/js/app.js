@@ -1107,6 +1107,25 @@ window.fillQuickPrompt = function(promptText) {
   }
 };
 
+window.appendQuickSpec = function(term) {
+  const input = document.getElementById('user-input');
+  if (input) {
+    let currentVal = input.value.trim();
+    if (currentVal) {
+      if (currentVal.endsWith(',')) {
+        input.value = currentVal + ' ' + term;
+      } else {
+        // Check if there is already a comma or if we should add space/comma
+        input.value = currentVal + ', ' + term;
+      }
+    } else {
+      input.value = 'Tư vấn ' + term;
+    }
+    input.focus();
+    scrollChatToBottom();
+  }
+};
+
 // ĐỒNG BỘ KHỞI TẠO KHI TẢI TRANG HOÀN TẤT
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('chat-form');

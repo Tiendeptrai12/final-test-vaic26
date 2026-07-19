@@ -227,23 +227,37 @@
       </div>
 
       <!-- Thẻ Gợi ý Kịch bản nhanh (Quick Prompts) -->
-      <div class="px-6 py-3 bg-white/60 dark:bg-brand-panel/30 border-t border-slate-200 dark:border-brand-border/40 shrink-0 transition-colors duration-300 relative z-10">
-        <p class="text-[11px] text-slate-500 dark:text-slate-500 mb-2 flex items-center font-semibold uppercase tracking-wider">
-          <i class="fa-regular fa-lightbulb text-brand-gold mr-1.5"></i> Gợi ý nhu cầu tìm kiếm nhanh:
+      <div class="px-6 py-3 bg-white/60 dark:bg-brand-panel/30 border-t border-slate-200 dark:border-brand-border/40 shrink-0 transition-colors duration-300 relative z-10 font-[Times_New_Roman]">
+        <p class="text-slate-700 dark:text-slate-300 mb-2 flex items-center font-bold uppercase tracking-wider" style="font-size: 24px; font-family: 'Times New Roman', Times, serif;">
+          <i class="fa-regular fa-lightbulb text-brand-gold mr-2 text-2xl"></i> Gợi ý nhu cầu nhanh:
         </p>
-        <div class="flex flex-row overflow-x-auto whitespace-nowrap gap-2 pb-1.5 scrollbar-thin">
-          <button onclick="window.fillQuickPrompt('Mua đh pana dưới 15 củ cho phòng ngủ')" class="bg-[#fefce8] hover:bg-[#fef9c3] border border-[#fef08a] text-[#854d0e] font-medium px-4 py-1.5 rounded-full transition-all duration-150 hover:scale-[1.03] active:scale-95 shadow-sm whitespace-nowrap" style="font-size: 18px;">
-            "Mua đh pana dưới 15 củ"
-          </button>
-          <button onclick="window.fillQuickPrompt('Tìm tủ lạnh tầm 10tr cho nhà 4 người')" class="bg-[#fefce8] hover:bg-[#fef9c3] border border-[#fef08a] text-[#854d0e] font-medium px-4 py-1.5 rounded-full transition-all duration-150 hover:scale-[1.03] active:scale-95 shadow-sm whitespace-nowrap" style="font-size: 18px;">
-            "Tủ lạnh tầm 10tr cho 4 người"
-          </button>
-          <button onclick="window.fillQuickPrompt('Cần tìm máy laptop sinh viên tầm 15tr mỏng nhẹ để đi học')" class="bg-[#fefce8] hover:bg-[#fef9c3] border border-[#fef08a] text-[#854d0e] font-medium px-4 py-1.5 rounded-full transition-all duration-150 hover:scale-[1.03] active:scale-95 shadow-sm whitespace-nowrap" style="font-size: 18px;">
-            "Laptop mỏng nhẹ ~15tr"
-          </button>
-          <button onclick="window.fillQuickPrompt('Tìm máy giặt sấy inverter dưới 20 triệu')" class="bg-[#fefce8] hover:bg-[#fef9c3] border border-[#fef08a] text-[#854d0e] font-medium px-4 py-1.5 rounded-full transition-all duration-150 hover:scale-[1.03] active:scale-95 shadow-sm whitespace-nowrap" style="font-size: 18px;">
-            "Máy giặt sấy inverter dưới 20 triệu"
-          </button>
+        <div class="grid grid-cols-3 gap-3 overflow-y-auto pr-1" style="max-height: 180px; font-family: 'Times New Roman', Times, serif;">
+          <!-- Cột 1: Sản phẩm -->
+          <div class="flex flex-col gap-1.5">
+            <span class="font-bold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 pb-0.5" style="font-size: 24px;">Sản phẩm</span>
+            <button type="button" onclick="window.appendQuickSpec('Máy lạnh')" class="text-left bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-950/40 text-blue-800 dark:text-blue-300 font-medium py-1.5 px-3 rounded-lg transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap text-ellipsis overflow-hidden block w-full cursor-pointer" style="font-size: 24px;" title="Máy lạnh">Máy lạnh</button>
+            <button type="button" onclick="window.appendQuickSpec('Tủ lạnh')" class="text-left bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-950/40 text-blue-800 dark:text-blue-300 font-medium py-1.5 px-3 rounded-lg transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap text-ellipsis overflow-hidden block w-full cursor-pointer" style="font-size: 24px;" title="Tủ lạnh">Tủ lạnh</button>
+            <button type="button" onclick="window.appendQuickSpec('Laptop')" class="text-left bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-950/40 text-blue-800 dark:text-blue-300 font-medium py-1.5 px-3 rounded-lg transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap text-ellipsis overflow-hidden block w-full cursor-pointer" style="font-size: 24px;" title="Laptop">Laptop</button>
+            <button type="button" onclick="window.appendQuickSpec('Máy giặt')" class="text-left bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-950/40 text-blue-800 dark:text-blue-300 font-medium py-1.5 px-3 rounded-lg transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap text-ellipsis overflow-hidden block w-full cursor-pointer" style="font-size: 24px;" title="Máy giặt">Máy giặt</button>
+          </div>
+
+          <!-- Cột 2: Ngân sách -->
+          <div class="flex flex-col gap-1.5">
+            <span class="font-bold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 pb-0.5" style="font-size: 24px;">Ngân sách</span>
+            <button type="button" onclick="window.appendQuickSpec('dưới 10 triệu')" class="text-left bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-medium py-1.5 px-3 rounded-lg transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap text-ellipsis overflow-hidden block w-full cursor-pointer" style="font-size: 24px;" title="Dưới 10 triệu">Dưới 10 triệu</button>
+            <button type="button" onclick="window.appendQuickSpec('dưới 15 triệu')" class="text-left bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-medium py-1.5 px-3 rounded-lg transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap text-ellipsis overflow-hidden block w-full cursor-pointer" style="font-size: 24px;" title="Dưới 15 triệu">Dưới 15 triệu</button>
+            <button type="button" onclick="window.appendQuickSpec('dưới 20 triệu')" class="text-left bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-medium py-1.5 px-3 rounded-lg transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap text-ellipsis overflow-hidden block w-full cursor-pointer" style="font-size: 24px;" title="Dưới 20 triệu">Dưới 20 triệu</button>
+            <button type="button" onclick="window.appendQuickSpec('dưới 25 triệu')" class="text-left bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-medium py-1.5 px-3 rounded-lg transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap text-ellipsis overflow-hidden block w-full cursor-pointer" style="font-size: 24px;" title="Dưới 25 triệu">Dưới 25 triệu</button>
+          </div>
+
+          <!-- Cột 3: Nhu cầu -->
+          <div class="flex flex-col gap-1.5">
+            <span class="font-bold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 pb-0.5" style="font-size: 24px;">Nhu cầu</span>
+            <button type="button" onclick="window.appendQuickSpec('chạy êm')" class="text-left bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 hover:bg-amber-100 dark:hover:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-medium py-1.5 px-3 rounded-lg transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap text-ellipsis overflow-hidden block w-full cursor-pointer" style="font-size: 24px;" title="Chạy êm, ít ồn">Chạy êm, ít ồn</button>
+            <button type="button" onclick="window.appendQuickSpec('tiết kiệm điện')" class="text-left bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 hover:bg-amber-100 dark:hover:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-medium py-1.5 px-3 rounded-lg transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap text-ellipsis overflow-hidden block w-full cursor-pointer" style="font-size: 24px;" title="Tiết kiệm điện">Tiết kiệm điện</button>
+            <button type="button" onclick="window.appendQuickSpec('mỏng nhẹ')" class="text-left bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 hover:bg-amber-100 dark:hover:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-medium py-1.5 px-3 rounded-lg transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap text-ellipsis overflow-hidden block w-full cursor-pointer" style="font-size: 24px;" title="Mỏng nhẹ">Mỏng nhẹ</button>
+            <button type="button" onclick="window.appendQuickSpec('có sấy')" class="text-left bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 hover:bg-amber-100 dark:hover:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-medium py-1.5 px-3 rounded-lg transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap text-ellipsis overflow-hidden block w-full cursor-pointer" style="font-size: 24px;" title="Có sấy khô">Có sấy khô</button>
+          </div>
         </div>
       </div>
 
