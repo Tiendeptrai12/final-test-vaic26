@@ -152,6 +152,144 @@ let consumerChatSessions = [];
 let activeSessionId = null;
 
 // ==========================================
+// AI BACKEND CONNECTION (Render + /api/chat)
+// ==========================================
+let AI_BASE_URL = ''; // Loaded from /api/config on init
+let currentProfile = {}; // Multi-turn NeedProfile — resent each turn
+
+async function fetchConfig() {
+  try {
+    const res = await fetch('/api/config', { cache: 'no-cache' });
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.api_base_url) {
+        AI_BASE_URL = cfg.api_base_url.replace(/\/$/, '');
+        console.log('[AI] Backend URL loaded:', AI_BASE_URL);
+        updateSystemStatus(true);
+      }
+    }
+  } catch (e) {
+    console.warn('[AI] Could not load /api/config, using mock mode.', e);
+    updateSystemStatus(false);
+  }
+}
+
+function updateSystemStatus(online) {
+  const statusEl = document.getElementById('system-status-text');
+  const dotEl = document.getElementById('system-status-dot');
+  if (!statusEl) return;
+  if (online) {
+    statusEl.textContent = 'Hệ thống Sẵn Sàng';
+    if (dotEl) dotEl.classList.replace('bg-yellow-400', 'bg-green-400');
+  } else {
+    statusEl.textContent = 'Chế độ Demo';
+    if (dotEl) dotEl.classList.replace('bg-green-400', 'bg-yellow-400');
+  }
+}
+
+async function callBackendChat(query) {
+  if (!AI_BASE_URL) return null;
+  try {
+    const res = await fetch(AI_BASE_URL + '/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, profile: currentProfile || {} }),
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!res.ok) {
+      console.warn('[AI] Backend returned', res.status);
+      return null;
+    }
+    const data = await res.json();
+    // Persist profile for next turn (stateless server)
+    if (data.profile) currentProfile = data.profile;
+    return data;
+  } catch (e) {
+    console.warn('[AI] Backend call failed, falling back to mock.', e);
+    return null;
+  }
+}
+
+function renderBackendResponse(data, startTime) {
+  const mode = data.mode || 'message';
+  const message = data.message || '';
+  const items = data.items || [];
+  const explanation = data.explanation || '';
+  const questions = data.questions || [];
+
+  // Update debug panel
+  const latencyEl = document.getElementById('latency-val');
+  if (latencyEl) latencyEl.textContent = Math.round(performance.now() - startTime) + 'ms';
+  const stageEl = document.getElementById('chat-stage');
+  if (stageEl) stageEl.textContent = mode.toUpperCase();
+  const catalogEl = document.getElementById('rag-catalog-status');
+  if (catalogEl) catalogEl.textContent = items.length > 0 ? `${items.length} sản phẩm từ AI` : 'AI RAG';
+
+  // Detect category from profile
+  const cat = data.profile && data.profile.category;
+  if (cat) {
+    sessionState.category = cat;
+    document.getElementById('active-category') && (document.getElementById('active-category').textContent = cat);
+    const labelMap = { ac: 'Tư vấn Máy Lạnh', fridge: 'Tư vấn Tủ Lạnh', laptop: 'Tư vấn Laptop', phone: 'Tư vấn Điện Thoại' };
+    if (labelMap[cat]) updateActiveSessionTitle(labelMap[cat], cat);
+  }
+
+  if (mode === 'need_info' || items.length === 0) {
+    // Câu hỏi hỏi ngược hoặc chưa đủ thông tin
+    const html = `<p class="text-sm">${message}</p>`;
+    appendAssistantMessage(html);
+    return;
+  }
+
+  // Render message intro
+  if (message) {
+    appendAssistantMessage(`<p class="text-sm">${message}</p>`);
+  }
+
+  // Render product cards
+  if (items.length > 0) {
+    let cardsHtml = `<div class="grid grid-cols-1 gap-3 mt-2">`;
+    items.forEach((item, idx) => {
+      const name = item.name || 'Sản phẩm';
+      const price = item.price_display || item.price || '';
+      const url = item.url || '#';
+      const reasons = (item.reasons || []).slice(0, 2);
+      const reasonsHtml = reasons.map(r => `<li class="flex items-start gap-1"><i class="fa-solid fa-check text-emerald-500 mt-0.5 text-[10px] shrink-0"></i><span>${r}</span></li>`).join('');
+      const brand = item.brand || '';
+
+      cardsHtml += `
+        <div class="bg-amber-50/60 dark:bg-amber-950/20 rounded-xl p-4 border border-amber-200/80 dark:border-amber-500/20 flex flex-col justify-between space-y-3 shadow-sm transition-all hover:shadow-md hover:border-amber-400/80">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="px-2 py-0.5 text-[10px] font-bold bg-amber-200/50 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200 rounded">Đề xuất ${idx + 1}</span>
+              ${brand ? `<span class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">${brand}</span>` : ''}
+            </div>
+            <h3 class="font-bold text-[12.5px] text-slate-900 dark:text-white mt-1 leading-snug">${name}</h3>
+            ${price ? `<div class="text-[15px] font-extrabold text-blue-600 dark:text-brand-electric mt-1.5">${price}</div>` : ''}
+            ${reasonsHtml ? `<ul class="text-[11px] text-slate-600 dark:text-slate-400 mt-2.5 space-y-1 bg-white/80 dark:bg-brand-dark/40 p-2.5 rounded-lg border border-amber-100 dark:border-brand-border/30">${reasonsHtml}</ul>` : ''}
+          </div>
+          <div class="flex gap-2">
+            <button class="flex-1 custom-btn-select text-xs py-2.5 rounded-xl font-bold transition-all shadow-sm">Đặt Mua Ngay</button>
+            ${url !== '#' ? `<a href="${url}" target="_blank" class="flex items-center justify-center px-3 py-2.5 rounded-xl border border-brand-electric/40 text-brand-electric text-xs font-semibold hover:bg-brand-electric/10 transition-all"><i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></a>` : ''}
+          </div>
+        </div>`;
+    });
+    cardsHtml += `</div>`;
+    appendAssistantMessage(cardsHtml);
+  }
+
+  // Render explanation prose từ LLM (Call B — z.ai)
+  if (explanation) {
+    const exHtml = `
+      <div class="mt-1 p-3 rounded-xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/40 text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed">
+        <i class="fa-solid fa-brain text-brand-electric mr-1.5 text-[10px]"></i>
+        <span>${explanation}</span>
+      </div>`;
+    appendAssistantMessage(exHtml);
+  }
+}
+
+// ==========================================
 // HỆ THỐNG ĐIỀU KHIỂN ĐÓNG/MỞ SIDEBAR
 // ==========================================
 function initCollapsibleSidebarLogic() {
@@ -519,18 +657,17 @@ function handleFormSubmit(event) {
   input.value = '';
   showTypingIndicator();
 
-  // FIX: Tăng thời gian chờ lên 1.3 giây để vòng lặp animation kịp diễn ra trọn vẹn
-  setTimeout(() => {
-    removeTypingIndicator();
-    dispatchLogicEngine(val);
-  }, 1300);
+  // Gọi backend AI hoặc fallback mock
+  dispatchLogicEngine(val);
 }
-function dispatchLogicEngine(text) {
+async function dispatchLogicEngine(text) {
   const startTime = performance.now();
   const lower = text.toLowerCase();
 
+  // FAQ cục bộ - trả lời ngay không cần backend
   for (const [key, answer] of Object.entries(MOCK_FAQ)) {
     if (lower.includes(key)) {
+      removeTypingIndicator();
       document.getElementById('rag-faq-status').textContent = `Khớp FAQ: [${key}]`;
       document.getElementById('latency-val').textContent = Math.round(performance.now() - startTime) + 'ms';
       appendAssistantMessage(`<p class="text-sm"><i class="fa-solid fa-circle-info text-brand-electric mr-1.5"></i>${answer}</p>`);
@@ -538,6 +675,18 @@ function dispatchLogicEngine(text) {
     }
   }
   document.getElementById('rag-faq-status').textContent = 'Không khớp FAQ';
+
+  // --- Gọi Backend AI thật ---
+  if (AI_BASE_URL) {
+    const data = await callBackendChat(text);
+    if (data) {
+      removeTypingIndicator();
+      renderBackendResponse(data, startTime);
+      return;
+    }
+    // Backend lỗi → fallback mock bên dưới
+    console.warn('[AI] Backend không phản hồi, chuyển sang mock.');
+  }
 
   const extracted = extractEntitiesFromText(text);
 
@@ -807,7 +956,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  createNewChatSession();
+  // Tải backend URL từ /api/config trước khi khởi tạo session
+  fetchConfig().finally(() => {
+    createNewChatSession();
+  });
 });
 
 // ==========================================

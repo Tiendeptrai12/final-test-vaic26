@@ -1,8 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/config", "destination": "/api/config" },
     { "source": "/", "destination": "/frontend/index.html" },
-    { "source": "/(.*)", "destination": "/frontend/$1" }
+    { "source": "/css/:path*", "destination": "/frontend/css/:path*" },
+    { "source": "/js/:path*", "destination": "/frontend/js/:path*" },
+    { "source": "/img/:path*", "destination": "/frontend/img/:path*" },
+    { "source": "/:file.:ext", "destination": "/frontend/:file.:ext" }
   ]
 }
+
