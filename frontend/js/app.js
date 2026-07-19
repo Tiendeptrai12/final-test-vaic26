@@ -367,6 +367,10 @@ function renderChooseFactors(data) {
   });
   html += `</div>`;
   html += `<button id="confirm-factors-btn" class="mt-3 w-full custom-btn-select text-xs py-2.5 rounded-xl font-bold opacity-50 pointer-events-none transition-all">Xác nhận ưu tiên</button>`;
+  html += `
+    <button onclick="window.focusCustomNeedInput()" class="mt-2 w-full py-2.5 px-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-electric hover:border-brand-electric transition-all flex items-center justify-center gap-1.5 bg-transparent cursor-pointer">
+      <i class="fa-regular fa-keyboard text-xs"></i> Tự nhập nhu cầu khác (Nhập hãng, tính năng, hoặc thông số...)
+    </button>`;
   appendAssistantMessage(html);
 }
 
@@ -415,6 +419,15 @@ window.confirmFactors = function() {
     if (data) renderBackendResponse(data, startTime);
     else appendAssistantMessage('<p class="text-sm">Dạ hệ thống đang bận, anh/chị thử lại giúp em nhé.</p>');
   });
+};
+
+window.focusCustomNeedInput = function() {
+  const input = document.getElementById('user-input');
+  if (input) {
+    input.focus();
+    input.placeholder = "Nhập hãng, tính năng, hoặc thông số cụ thể (ví dụ: 'máy lạnh LG có wifi')...";
+    scrollChatToBottom();
+  }
 };
 
 // ==========================================
