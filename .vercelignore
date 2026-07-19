@@ -25,6 +25,8 @@ vietnamese-correction/
 *.docx
 *.pdf
 *.png
+!frontend/img/**/*.png
+!icon.png
 *.pptx
 *.zip
 FPT Factory API Key.txt
