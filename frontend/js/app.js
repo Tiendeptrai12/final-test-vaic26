@@ -201,7 +201,13 @@ async function callBackendChat(query, chosenFactors) {
       return null;
     }
     const data = await res.json();
-    if (data.profile) currentProfile = data.profile;
+    if (data.profile) {
+      currentProfile = data.profile;
+      if (activeSessionId) {
+        const s = consumerChatSessions.find(item => item.id === activeSessionId);
+        if (s) s.profile = currentProfile;
+      }
+    }
     return data;
   } catch (e) {
     console.warn('[AI] Gọi backend thất bại, fallback mock.', e);
@@ -588,6 +594,7 @@ function createNewChatSession(initialTitle = "Cuộc trò chuyện mới") {
     timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
     messages: [],
     category: null,
+    profile: {},
     mascot: randomMascot
   };
   consumerChatSessions.unshift(newSession);
@@ -651,6 +658,7 @@ function renderChatHistoryUI() {
 }
 
 function restoreSessionMessages(session) {
+  currentProfile = session.profile || {};
   const chatBox = document.getElementById('chat-box');
   if (!chatBox) return;
 
@@ -767,6 +775,34 @@ function handleFormSubmit(event) {
   if (!val) return;
 
   if (!activeSessionId) createNewChatSession();
+
+  const s = consumerChatSessions.find(item => item.id === activeSessionId);
+  const hasBought = s && s.messages && s.messages.some(msg => 
+    msg.role === 'assistant' && msg.content.includes('yêu cầu đặt mua')
+  );
+
+  if (hasBought) {
+    const householdKeywords = [
+      'điện thoại', 'điên thoai', 'đt', 'dt', 'iphone', 'samsung', 'oppo', 'xiaomi', 'realme',
+      'máy lạnh', 'may lanh', 'điều hòa', 'dieu hoa', 'đh', 'dh', 'daikin', 'panasonic',
+      'tủ lạnh', 'tu lanh', 'hitachi', 'toshiba', 'panasonic',
+      'laptop', 'máy tính', 'may tinh', 'asus', 'dell', 'hp', 'macbook', 'acer',
+      'máy giặt', 'may giat',
+      'máy sấy', 'may say',
+      'máy rửa chén', 'may rua chen', 'rửa bát', 'rua bat',
+      'máy nước nóng', 'may nuoc nong',
+      'tủ đông', 'tu dong', 'tủ mát', 'tu mat',
+      'màn hình', 'man hinh',
+      'máy in', 'may in',
+      'đồng hồ', 'dong ho',
+      'micro', 'mic', 'tivi', 'tv'
+    ];
+    const lowerVal = val.toLowerCase();
+    const isAppliance = householdKeywords.some(kw => lowerVal.includes(kw));
+    if (isAppliance) {
+      window.resetConversation();
+    }
+  }
 
   appendUserMessage(val);
   input.value = '';
@@ -988,6 +1024,7 @@ async function dispatchLogicEngine(text) {
 // CÁC HÀM KHỞI TẠO VÀ LÀM MỚI PHIÊN
 // ==========================================
 window.resetConversation = function() {
+  currentProfile = {};
   if (activeSessionId) {
     const currentSession = consumerChatSessions.find(item => item.id === activeSessionId);
     if (currentSession && (!currentSession.messages || currentSession.messages.length === 0)) {

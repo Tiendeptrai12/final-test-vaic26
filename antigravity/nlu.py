@@ -266,10 +266,12 @@ _LIST_SLOTS = ("brands", "factor_priorities")
 def merge_profiles(prior: NeedProfile, new: NeedProfile) -> NeedProfile:
     """Carry slots across turns: the new turn's value wins, else keep the prior.
 
-    This is the multi-turn "hỏi ngược" fix — when the user answers a follow-up ("18m2,
-    20 triệu") the earlier slots (priority=quiet) are not lost. Server stays stateless;
-    the client resends `profile` each turn.
+    If the category changes, we reset all slots to avoid carrying over incompatible
+    category-specific slots (e.g., area_m2 from Máy lạnh to Điện thoại).
     """
+    if prior.category is not None and new.category is not None and prior.category != new.category:
+        return new
+
     out: dict[str, Any] = {}
     for f in _PROFILE_FIELDS:
         nv, pv = getattr(new, f), getattr(prior, f)

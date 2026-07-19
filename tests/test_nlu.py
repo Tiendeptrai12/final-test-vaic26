@@ -167,7 +167,7 @@ def test_chat_response_recommendation(monkeypatch):
         _rec("B", 18_000_000, 15, 20, 42, 4.5),
     ]
     resp = nlu.build_chat_response("máy lạnh 20 triệu phòng 18m2 êm", records=records,
-                                   explain=False)
+                                   explain=False, chosen_factors=["quiet"])
     assert resp["mode"] == "recommendation"
     assert resp["items"] and resp["items"][0]["product_id"] == "A"
     assert "price" in resp["items"][0] and "reasons" in resp["items"][0]
@@ -184,7 +184,7 @@ def test_chat_response_includes_explanation(monkeypatch):
                         lambda items, profile, **k: "Daikin êm hơn, LG tiết kiệm điện hơn.")
     resp = nlu.build_chat_response("máy lạnh 20 triệu 18m2 êm",
                                    records=[_rec("A", 10_000_000, 15, 20, 30, 6.2)],
-                                   explain=True)
+                                   explain=True, chosen_factors=["quiet"])
     assert resp["explanation"] == "Daikin êm hơn, LG tiết kiệm điện hơn."
 
 
@@ -199,7 +199,8 @@ def test_chat_response_need_info(monkeypatch):
 def test_chat_response_no_results(monkeypatch):
     _mock_llm(monkeypatch, {"category": "Máy lạnh", "budget_max": 1_000_000, "area_m2": 18})  # too cheap
     resp = nlu.build_chat_response("máy lạnh 1 triệu phòng 18m2",
-                                   records=[_rec("A", 10_000_000, 15, 20, 30, 6.2)])
+                                   records=[_rec("A", 10_000_000, 15, 20, 30, 6.2)],
+                                   chosen_factors=["quiet"])
     assert resp["mode"] == "recommendation" and resp["items"] == []
     assert "Chưa có sản phẩm phù hợp" in resp["message"]
 
@@ -228,14 +229,14 @@ def test_merge_profiles_new_wins_else_prior():
 
 def test_followup_answer_keeps_earlier_priority(monkeypatch):
     records = [_rec("A", 15_000_000, 15, 20, 22, 6.0)]
-    # turn 1: only priority -> need_info
+    # turn 1: only priority -> goes to choose_factors
     _mock_llm(monkeypatch, {"category": "Máy lạnh", "priority": "quiet"})
     r1 = nlu.build_chat_response("máy lạnh ít ồn", records=records, explain=False)
-    assert r1["mode"] == "need_info" and r1["profile"]["priority"] == "quiet"
+    assert r1["mode"] == "choose_factors" and r1["profile"]["priority"] == "quiet"
     # turn 2: area+budget, resend prior profile -> priority must persist
     _mock_llm(monkeypatch, {"category": "Máy lạnh", "area_m2": 18, "budget_max": 20000000})
     r2 = nlu.build_chat_response("18m2, 20 triệu", records=records, explain=False,
-                                 prior_profile=r1["profile"])
+                                 prior_profile=r1["profile"], chosen_factors=["quiet"])
     assert r2["mode"] == "recommendation"
     assert r2["profile"]["priority"] == "quiet" and r2["profile"]["area_m2"] == 18.0
 
