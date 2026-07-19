@@ -235,8 +235,19 @@ function renderBackendResponse(data, startTime) {
   if (cat) {
     sessionState.category = cat;
     document.getElementById('active-category') && (document.getElementById('active-category').textContent = cat);
-    const labelMap = { ac: 'Tư vấn Máy Lạnh', fridge: 'Tư vấn Tủ Lạnh', laptop: 'Tư vấn Laptop', phone: 'Tư vấn Điện Thoại' };
-    if (labelMap[cat]) updateActiveSessionTitle(labelMap[cat], cat);
+    
+    let title = `Tư vấn ${cat}`;
+    const lowerCat = cat.toLowerCase();
+    if (lowerCat === 'ac' || lowerCat === 'máy lạnh' || lowerCat === 'may lanh') {
+      title = 'Tư vấn Máy Lạnh';
+    } else if (lowerCat === 'fridge' || lowerCat === 'tủ lạnh' || lowerCat === 'tu lanh') {
+      title = 'Tư vấn Tủ Lạnh';
+    } else if (lowerCat === 'laptop') {
+      title = 'Tư vấn Laptop';
+    } else if (lowerCat === 'phone' || lowerCat === 'điện thoại' || lowerCat === 'dien thoai') {
+      title = 'Tư vấn Điện Thoại';
+    }
+    updateActiveSessionTitle(title, cat);
   }
 
   // --- CHOOSE FACTORS: present ≤4 consideration factors (3-layer) + A/B/C/D chips ---
