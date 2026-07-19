@@ -117,23 +117,23 @@ const MOCK_FAQ = {
 };
 
 const MASCOT_IMAGES = [
-  'ChatGPT Image 21_08_20 17 thg 7, 2026 (1).png',
-  'ChatGPT Image 21_08_20 17 thg 7, 2026 (2).png',
-  'ChatGPT Image 21_08_21 17 thg 7, 2026 (3).png',
-  'ChatGPT Image 21_09_41 17 thg 7, 2026 (4).png',
-  'ChatGPT Image 21_09_42 17 thg 7, 2026 (5).png',
-  'ChatGPT Image 21_09_43 17 thg 7, 2026 (7).png',
-  'ChatGPT Image 21_09_43 17 thg 7, 2026 (8).png',
-  'ChatGPT Image 21_09_51 17 thg 7, 2026 (10).png',
-  'ChatGPT Image 21_18_18 17 thg 7, 2026 (1).png',
-  'ChatGPT Image 21_18_19 17 thg 7, 2026 (2).png',
-  'ChatGPT Image 21_18_19 17 thg 7, 2026 (3).png',
-  'ChatGPT Image 21_18_20 17 thg 7, 2026 (4).png',
-  'ChatGPT Image 21_18_21 17 thg 7, 2026 (5).png',
-  'ChatGPT Image 21_18_21 17 thg 7, 2026 (6).png',
-  'ChatGPT Image 21_18_22 17 thg 7, 2026 (7).png',
-  'ChatGPT Image 21_18_22 17 thg 7, 2026 (8).png',
-  'ChatGPT Image 21_18_23 17 thg 7, 2026 (9).png'
+  'mascot-01.png',
+  'mascot-02.png',
+  'mascot-03.png',
+  'mascot-04.png',
+  'mascot-05.png',
+  'mascot-06.png',
+  'mascot-07.png',
+  'mascot-08.png',
+  'mascot-09.png',
+  'mascot-10.png',
+  'mascot-11.png',
+  'mascot-12.png',
+  'mascot-13.png',
+  'mascot-14.png',
+  'mascot-15.png',
+  'mascot-16.png',
+  'mascot-17.png'
 ];
 
 let sessionState = {
@@ -152,24 +152,21 @@ let consumerChatSessions = [];
 let activeSessionId = null;
 
 // ==========================================
-// AI BACKEND CONNECTION (Render + /api/chat)
+// AI BACKEND CONNECTION (/api/chat — same-origin Vercel)
 // ==========================================
-let AI_BASE_URL = ''; // Loaded from /api/config on init
 let currentProfile = {}; // Multi-turn NeedProfile — resent each turn
 
 async function fetchConfig() {
   try {
-    const res = await fetch('/api/config', { cache: 'no-cache' });
+    const res = await fetch('/api/health', { cache: 'no-cache' });
     if (res.ok) {
-      const cfg = await res.json();
-      if (cfg.api_base_url) {
-        AI_BASE_URL = cfg.api_base_url.replace(/\/$/, '');
-        console.log('[AI] Backend URL loaded:', AI_BASE_URL);
-        updateSystemStatus(true);
-      }
+      console.log('[AI] Vercel backend sẵn sàng.');
+      updateSystemStatus(true);
+    } else {
+      updateSystemStatus(false);
     }
   } catch (e) {
-    console.warn('[AI] Could not load /api/config, using mock mode.', e);
+    console.warn('[AI] Backend không phản hồi, chế độ demo.', e);
     updateSystemStatus(false);
   }
 }
@@ -188,24 +185,22 @@ function updateSystemStatus(online) {
 }
 
 async function callBackendChat(query) {
-  if (!AI_BASE_URL) return null;
   try {
-    const res = await fetch(AI_BASE_URL + '/api/chat', {
+    const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, profile: currentProfile || {} }),
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(20000)
     });
     if (!res.ok) {
-      console.warn('[AI] Backend returned', res.status);
+      console.warn('[AI] /api/chat trả về', res.status);
       return null;
     }
     const data = await res.json();
-    // Persist profile for next turn (stateless server)
     if (data.profile) currentProfile = data.profile;
     return data;
   } catch (e) {
-    console.warn('[AI] Backend call failed, falling back to mock.', e);
+    console.warn('[AI] Gọi backend thất bại, fallback mock.', e);
     return null;
   }
 }
@@ -676,17 +671,15 @@ async function dispatchLogicEngine(text) {
   }
   document.getElementById('rag-faq-status').textContent = 'Không khớp FAQ';
 
-  // --- Gọi Backend AI thật ---
-  if (AI_BASE_URL) {
-    const data = await callBackendChat(text);
-    if (data) {
-      removeTypingIndicator();
-      renderBackendResponse(data, startTime);
-      return;
-    }
-    // Backend lỗi → fallback mock bên dưới
-    console.warn('[AI] Backend không phản hồi, chuyển sang mock.');
+  // --- Gọi Backend AI thật (Vercel /api/chat) ---
+  const data = await callBackendChat(text);
+  if (data) {
+    removeTypingIndicator();
+    renderBackendResponse(data, startTime);
+    return;
   }
+  // Backend lỗi → fallback mock bên dưới
+  console.warn('[AI] Backend không phản hồi, fallback mock.');
 
   const extracted = extractEntitiesFromText(text);
 
@@ -956,7 +949,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Tải backend URL từ /api/config trước khi khởi tạo session
+  // Ping /api/health (same-origin Vercel) để cập nhật trạng thái trước khi tạo session
   fetchConfig().finally(() => {
     createNewChatSession();
   });

@@ -64,6 +64,16 @@ libs/
 # Teammate backup snapshot (5000+ files) — not part of this repo's build
 backend_final-main/
 
+# Vendored boilerplate with its own .git (broken gitlink if committed) — local only
+html5-boilerplate/
+
+# BTC spec workbook (NDA) — every copy, any directory
+Spec_cate_gia.xlsx
+
+# Vendored vietnamese-correction training corpora (>50MB, exceed GitHub limits)
+vietnamese-correction/data/data.vi.txt
+vietnamese-correction/data/data_27topics_processed.txt
+
 # Agent/workspace + local noise (keep Source Control panel clean, prevent leaks)
 .claude/
 memory.md
